@@ -1,0 +1,13 @@
+{
+    "MONGODB_URI": "mongodb://[usuario]:[contraseña]@[host]:[puerto]/[nombre_bd]",
+    "DATABASE_NAME": "nombre_de_tu_bd",
+    "COLLECTIONS_TO_BACKUP": [
+        "coleccion_usuarios",
+        "coleccion_productos",
+        "otra_coleccion_importante"
+    ],
+    "LOCAL_BACKUP_PATH": "C:/Backups/MongoDB",
+    "TELEGRAM_TOKEN": "TU_TOKEN_DE_BOTFATHER",
+    "TELEGRAM_CHAT_ID": "-100123456789",
+    "WEEKLY_BACKUP_DAY": "Friday"
+}
