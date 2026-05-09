@@ -1,0 +1,97 @@
+[tool.poetry]
+name = "mongo-ops-platform"
+version = "2.0.0"
+description = "Enterprise MongoDB Atlas Operations Automation Platform with Telegram interface"
+authors = ["Engineering Team <engineering@company.com>"]
+readme = "README.md"
+license = "MIT"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+aiogram = "^3.8.0"
+pymongo = "^4.7.0"
+motor = "^3.5.0"
+redis = "^5.0.0"
+rq = "^1.16.0"
+sqlalchemy = {version = "^2.0.0", extras = ["asyncio"]}
+aiosqlite = "^0.20.0"
+pydantic = "^2.7.0"
+pydantic-settings = "^2.2.0"
+loguru = "^0.7.0"
+structlog = "^24.1.0"
+aiofiles = "^23.0.0"
+python-dotenv = "^1.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.0"
+pytest-asyncio = "^0.23.0"
+pytest-cov = "^5.0.0"
+factory-boy = "^3.3.0"
+ruff = "^0.4.0"
+mypy = "^1.10.0"
+pre-commit = "^3.7.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+indent-width = 4
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "ASYNC", # flake8-async
+    "ARG", # flake8-unused-arguments
+]
+ignore = ["E501"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--cov=app --cov-report=term-missing --cov-report=html:htmlcov"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*", "*/tests_*.py"]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
