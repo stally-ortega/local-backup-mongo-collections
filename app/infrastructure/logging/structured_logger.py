@@ -12,9 +12,10 @@ import logging
 import logging.handlers
 import os
 import sys
+from collections.abc import Mapping, MutableMapping
 from contextvars import ContextVar
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 import structlog
 

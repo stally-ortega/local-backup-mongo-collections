@@ -2,8 +2,8 @@
 
 import json
 import logging
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
 import structlog
@@ -187,5 +187,3 @@ class TestCorrelationId:
         assert len(lines) == 2
         second = json.loads(lines[1])
         assert "correlation_id" not in second
-
-
