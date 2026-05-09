@@ -87,9 +87,7 @@ class TestAppConfigValidation:
             self._load()
         assert "backup_base_path must be a directory" in str(exc_info.value)
 
-    def test_mongodb_uri_rejects_invalid_scheme(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_mongodb_uri_rejects_invalid_scheme(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Only 'mongodb' and 'mongodb+srv' schemes are accepted."""
         self._set_required(monkeypatch)
         monkeypatch.setenv("MONGO_OPS_MONGODB_URI", "http://invalid.com")
@@ -98,9 +96,7 @@ class TestAppConfigValidation:
             self._load()
         assert "mongodb+srv" in str(exc_info.value)
 
-    def test_mongodb_uri_rejects_missing_host(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_mongodb_uri_rejects_missing_host(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A URI without a host is rejected."""
         self._set_required(monkeypatch)
         monkeypatch.setenv("MONGO_OPS_MONGODB_URI", "mongodb://")
@@ -109,9 +105,7 @@ class TestAppConfigValidation:
             self._load()
         assert "valid scheme and host" in str(exc_info.value)
 
-    def test_log_level_rejects_invalid_value(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_log_level_rejects_invalid_value(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Only standard logging levels are accepted."""
         self._set_required(monkeypatch)
         monkeypatch.setenv("MONGO_OPS_LOG_LEVEL", "VERBOSE")
@@ -120,9 +114,7 @@ class TestAppConfigValidation:
             self._load()
         assert "log_level must be one of" in str(exc_info.value)
 
-    def test_log_level_normalizes_case(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_log_level_normalizes_case(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Log levels are upper-cased automatically."""
         self._set_required(monkeypatch)
         monkeypatch.setenv("MONGO_OPS_LOG_LEVEL", "debug")
@@ -130,9 +122,7 @@ class TestAppConfigValidation:
         cfg = self._load()
         assert cfg.log_level == "DEBUG"
 
-    def test_max_concurrent_backups_rejects_zero(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_max_concurrent_backups_rejects_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Zero concurrent backups is not allowed."""
         self._set_required(monkeypatch)
         monkeypatch.setenv("MONGO_OPS_MAX_CONCURRENT_BACKUPS", "0")
@@ -141,9 +131,7 @@ class TestAppConfigValidation:
             self._load()
         assert "max_concurrent_backups" in str(exc_info.value)
 
-    def test_max_concurrent_backups_rejects_too_high(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_max_concurrent_backups_rejects_too_high(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """More than 20 concurrent backups is not allowed."""
         self._set_required(monkeypatch)
         monkeypatch.setenv("MONGO_OPS_MAX_CONCURRENT_BACKUPS", "25")
@@ -152,9 +140,7 @@ class TestAppConfigValidation:
             self._load()
         assert "max_concurrent_backups" in str(exc_info.value)
 
-    def test_telegram_chat_id_rejects_non_numeric(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_telegram_chat_id_rejects_non_numeric(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Telegram chat IDs must be numeric strings."""
         self._set_required(monkeypatch)
         monkeypatch.setenv("MONGO_OPS_TELEGRAM_CHAT_ID", "not_a_number")

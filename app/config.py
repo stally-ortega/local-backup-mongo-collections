@@ -137,9 +137,7 @@ class AppConfig(BaseSettings):
             try:
                 resolved.mkdir(parents=True, exist_ok=True)
             except OSError as exc:
-                raise ValueError(
-                    f"backup_base_path '{resolved}' cannot be created: {exc}"
-                ) from exc
+                raise ValueError(f"backup_base_path '{resolved}' cannot be created: {exc}") from exc
         return resolved
 
     @field_validator("log_level", mode="after")
