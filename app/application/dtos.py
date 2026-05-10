@@ -6,6 +6,7 @@ without exposing domain internals directly.
 
 from pydantic import BaseModel, Field
 
+from app.domain.entities.size_report import CollectionSize, DatabaseSize
 from app.domain.entities.user import User
 from app.domain.value_objects.dtos import CollectionTarget
 from app.domain.value_objects.enums import BackupType, JobStatus
@@ -55,3 +56,44 @@ class ExecuteBackupResult(BaseModel):
     total_collections: int
     bytes_processed: int
     error_log: str | None = None
+
+
+class QuerySizeDto(BaseModel):
+    """Input payload for the size query use case."""
+
+    user: User
+    scope: str = Field(..., pattern=r"^(cluster|database|collection)$")
+    cluster_uri_hash: str = Field(..., min_length=1)
+    database_name: str | None = None
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=50, ge=1, le=200)
+    topic: str = "SIZE_ASK"
+    command: str | None = None
+
+
+class QuerySizeResult(BaseModel):
+    """Outcome of a size query."""
+
+    scope: str
+    cluster_uri_hash: str
+    database_name: str | None = None
+    total_size_bytes: int
+    databases: list[DatabaseSize] | None = None
+    collections: list[CollectionSize] | None = None
+
+
+class CancelJobDto(BaseModel):
+    """Input payload for the cancel job use case."""
+
+    user: User
+    job_id: str = Field(..., min_length=1)
+    topic: str = "BACKUP_REQUESTS"
+    command: str | None = None
+
+
+class CancelJobResult(BaseModel):
+    """Outcome of a job cancellation."""
+
+    job_id: str = Field(..., min_length=1)
+    status: JobStatus
+    cancelled_by: int
