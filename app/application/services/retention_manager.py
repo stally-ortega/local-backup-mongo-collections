@@ -62,6 +62,23 @@ class RetentionManager:
 
         Returns a summary dict with counts and bytes reclaimed.
         """
+        age_result = await self.cleanup_old_backups()
+        size_result = await self.enforce_max_storage()
+
+        return {
+            "deleted_count": age_result["deleted_count"] + size_result["deleted_count"],
+            "reclaimed_bytes": age_result["reclaimed_bytes"] + size_result["reclaimed_bytes"],
+            "errors": age_result["errors"] + size_result["errors"],
+        }
+
+    async def cleanup_old_backups(self) -> dict[str, Any]:
+        """Remove backups older than the configured retention windows.
+
+        Guarantees at least one surviving backup per known type (``full``,
+        ``custom``) even when every file is older than the cutoff.
+
+        Returns a summary dict with counts and bytes reclaimed.
+        """
         files = await self._fs.list_files_recursive(self._base_path, pattern="backup_*.tar.gz")
         if not files:
             return {"deleted_count": 0, "reclaimed_bytes": 0, "errors": []}
@@ -70,7 +87,62 @@ class RetentionManager:
         cutoff_full = now - timedelta(weeks=self._full_weeks)
         cutoff_custom = now - timedelta(weeks=self._custom_weeks)
 
-        # Build a list of backup descriptors with metadata.
+        backups = await self._build_backup_descriptors(files)
+
+        full_backups = sorted(
+            [b for b in backups if b["type"] == "full"],
+            key=lambda b: b["mtime"],
+        )
+        custom_backups = sorted(
+            [b for b in backups if b["type"] == "custom"],
+            key=lambda b: b["mtime"],
+        )
+
+        to_delete: set[Path] = set()
+        to_delete.update(self._prune_by_age(full_backups, cutoff_full, minimum_keep=1))
+        to_delete.update(self._prune_by_age(custom_backups, cutoff_custom, minimum_keep=1))
+
+        return await self._execute_deletions(to_delete)
+
+    async def enforce_max_storage(self) -> dict[str, Any]:
+        """Remove oldest backups until total size is below the configured cap.
+
+        Respects a minimum of one backup per known type.
+
+        Returns a summary dict with counts and bytes reclaimed.
+        """
+        files = await self._fs.list_files_recursive(self._base_path, pattern="backup_*.tar.gz")
+        if not files:
+            return {"deleted_count": 0, "reclaimed_bytes": 0, "errors": []}
+
+        backups = await self._build_backup_descriptors(files)
+        total_size = sum(b["size"] for b in backups)
+
+        if total_size <= self._max_bytes:
+            return {"deleted_count": 0, "reclaimed_bytes": 0, "errors": []}
+
+        full_backups = [b for b in backups if b["type"] == "full"]
+        custom_backups = [b for b in backups if b["type"] == "custom"]
+
+        to_delete = self._prune_by_size(
+            backups,
+            total_size,
+            self._max_bytes,
+            full_backups=full_backups,
+            custom_backups=custom_backups,
+        )
+
+        return await self._execute_deletions(to_delete)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    async def _build_backup_descriptors(
+        self,
+        files: list[Path],
+    ) -> list[dict[str, Any]]:
+        """Build a list of backup descriptors with metadata."""
         backups: list[dict[str, Any]] = []
         for file_path in files:
             mtime = await self._fs.get_modification_time(file_path)
@@ -84,43 +156,15 @@ class RetentionManager:
                     "size": size,
                 }
             )
+        return backups
 
-        # Separate by type so we can enforce the "at least one" minimum.
-        full_backups = sorted(
-            [b for b in backups if b["type"] == "full"],
-            key=lambda b: b["mtime"],
-        )
-        custom_backups = sorted(
-            [b for b in backups if b["type"] == "custom"],
-            key=lambda b: b["mtime"],
-        )
-
-        to_delete: set[Path] = set()
-
-        # Age-based pruning.
-        to_delete.update(self._prune_by_age(full_backups, cutoff_full, minimum_keep=1))
-        to_delete.update(self._prune_by_age(custom_backups, cutoff_custom, minimum_keep=1))
-
-        # Size-based pruning (oldest first) if still over the global cap.
-        remaining = [b for b in backups if b["path"] not in to_delete]
-        total_size = sum(b["size"] for b in remaining)
-        if total_size > self._max_bytes:
-            to_delete.update(
-                self._prune_by_size(
-                    remaining,
-                    total_size,
-                    self._max_bytes,
-                    full_backups=[b for b in remaining if b["type"] == "full"],
-                    custom_backups=[b for b in remaining if b["type"] == "custom"],
-                )
-            )
-
+    async def _execute_deletions(self, to_delete: set[Path]) -> dict[str, Any]:
+        """Delete the given paths and return a summary."""
         deleted_count = 0
         reclaimed_bytes = 0
         errors: list[str] = []
         for path in to_delete:
             try:
-                # For a single file, get_folder_size returns its own size.
                 size = await self._fs.get_folder_size(path)
                 await self._fs.delete(path)
                 deleted_count += 1
@@ -142,7 +186,6 @@ class RetentionManager:
             return "full"
         if "custom" in name:
             return "custom"
-        # Fallback to parent directory name.
         parent = path.parent.name.lower()
         if parent == "full":
             return "full"
@@ -161,7 +204,6 @@ class RetentionManager:
         to_delete: set[Path] = set()
         for backup in sorted_backups:
             if backup["mtime"] < cutoff:
-                # Ensure we never delete the last N items.
                 kept = len(sorted_backups) - len(to_delete)
                 if kept > minimum_keep:
                     to_delete.add(backup["path"])
@@ -181,7 +223,6 @@ class RetentionManager:
         Respects a minimum of one backup per known type.
         """
         to_delete: set[Path] = set()
-        # Sort globally by mtime (oldest first).
         candidates = sorted(all_backups, key=lambda b: b["mtime"])
 
         for backup in candidates:

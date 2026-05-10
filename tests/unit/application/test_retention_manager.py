@@ -272,3 +272,153 @@ class TestRetentionManagerClassify:
 
     def test_unknown(self) -> None:
         assert RetentionManager._classify_type(Path("backup_unknown_xxx.tar.gz")) == "unknown"
+
+
+class TestCleanupOldBackups:
+    @pytest.mark.asyncio
+    async def test_empty_directory(self, manager: RetentionManager) -> None:
+        result = await manager.cleanup_old_backups()
+        assert result["deleted_count"] == 0
+        assert result["reclaimed_bytes"] == 0
+
+    @pytest.mark.asyncio
+    async def test_deletes_old_full_and_custom(
+        self,
+        manager: RetentionManager,
+        fs: _FakeFsUtils,
+        base_path: Path,
+    ) -> None:
+        now = datetime.utcnow()
+        # Recent backups (should survive).
+        fs.seed_file(
+            base_path / "backup_full_20260115_120000.tar.gz",
+            size=100,
+            mtime=now,
+        )
+        fs.seed_file(
+            base_path / "backup_custom_20260115_120000.tar.gz",
+            size=100,
+            mtime=now,
+        )
+        # Old backups (should be deleted).
+        fs.seed_file(
+            base_path / "backup_full_20251001_120000.tar.gz",
+            size=50,
+            mtime=now - timedelta(weeks=10),
+        )
+        fs.seed_file(
+            base_path / "backup_custom_20251001_120000.tar.gz",
+            size=50,
+            mtime=now - timedelta(weeks=5),
+        )
+
+        result = await manager.cleanup_old_backups()
+
+        assert result["deleted_count"] == 2
+        assert result["reclaimed_bytes"] == 100
+        assert (base_path / "backup_full_20251001_120000.tar.gz") in fs._deleted
+        assert (base_path / "backup_custom_20251001_120000.tar.gz") in fs._deleted
+
+    @pytest.mark.asyncio
+    async def test_respects_minimum_one_per_type(
+        self,
+        manager: RetentionManager,
+        fs: _FakeFsUtils,
+        base_path: Path,
+    ) -> None:
+        now = datetime.utcnow()
+        fs.seed_file(
+            base_path / "backup_full_20250101_120000.tar.gz",
+            size=100,
+            mtime=now - timedelta(weeks=52),
+        )
+        fs.seed_file(
+            base_path / "backup_custom_20250101_120000.tar.gz",
+            size=100,
+            mtime=now - timedelta(weeks=52),
+        )
+
+        result = await manager.cleanup_old_backups()
+
+        assert result["deleted_count"] == 0
+        assert result["reclaimed_bytes"] == 0
+
+
+class TestEnforceMaxStorage:
+    @pytest.mark.asyncio
+    async def test_empty_directory(self, manager: RetentionManager) -> None:
+        result = await manager.enforce_max_storage()
+        assert result["deleted_count"] == 0
+        assert result["reclaimed_bytes"] == 0
+
+    @pytest.mark.asyncio
+    async def test_no_action_when_under_cap(
+        self,
+        manager: RetentionManager,
+        fs: _FakeFsUtils,
+        base_path: Path,
+    ) -> None:
+        now = datetime.utcnow()
+        fs.seed_file(
+            base_path / "backup_full_20260101_120000.tar.gz",
+            size=100,
+            mtime=now,
+        )
+
+        result = await manager.enforce_max_storage()
+
+        assert result["deleted_count"] == 0
+        assert result["reclaimed_bytes"] == 0
+
+    @pytest.mark.asyncio
+    async def test_removes_oldest_when_over_cap(
+        self,
+        manager: RetentionManager,
+        fs: _FakeFsUtils,
+        base_path: Path,
+    ) -> None:
+        now = datetime.utcnow()
+        for i in range(5):
+            fs.seed_file(
+                base_path / f"backup_full_2026010{i}_120000.tar.gz",
+                size=300_000_000,
+                mtime=now - timedelta(days=i),
+            )
+
+        result = await manager.enforce_max_storage()
+
+        assert result["deleted_count"] >= 1
+        assert result["reclaimed_bytes"] > 0
+        newest = base_path / "backup_full_20260100_120000.tar.gz"
+        assert newest not in fs._deleted
+
+    @pytest.mark.asyncio
+    async def test_keeps_one_per_type_minimum(
+        self,
+        manager: RetentionManager,
+        fs: _FakeFsUtils,
+        base_path: Path,
+    ) -> None:
+        now = datetime.utcnow()
+        fs.seed_file(
+            base_path / "backup_full_20260101_120000.tar.gz",
+            size=600_000_000,
+            mtime=now - timedelta(days=2),
+        )
+        fs.seed_file(
+            base_path / "backup_full_20260102_120000.tar.gz",
+            size=600_000_000,
+            mtime=now - timedelta(days=1),
+        )
+        fs.seed_file(
+            base_path / "backup_custom_20260101_120000.tar.gz",
+            size=600_000_000,
+            mtime=now - timedelta(days=1),
+        )
+
+        await manager.enforce_max_storage()
+
+        remaining_full = [p for p in fs._files if "full" in p.name]
+        remaining_custom = [p for p in fs._files if "custom" in p.name]
+        assert len(remaining_full) >= 1
+        assert len(remaining_custom) >= 1
