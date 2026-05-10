@@ -109,6 +109,18 @@ class AppConfig(BaseSettings):
         description="Root logging level",
     )
 
+    # Rate limiting
+    rate_limit_max_requests: int = Field(
+        default=10,
+        ge=1,
+        description="Maximum requests per user per rate-limit window",
+    )
+    rate_limit_window_seconds: int = Field(
+        default=60,
+        ge=1,
+        description="Rate-limit window duration in seconds",
+    )
+
     # Concurrency
     max_concurrent_backups: int = Field(
         default=3,

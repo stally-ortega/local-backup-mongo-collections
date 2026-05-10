@@ -13,7 +13,7 @@ from aiogram.fsm.storage.redis import RedisEventIsolation, RedisStorage
 
 from app.config import AppConfig
 from app.infrastructure.telegram.aiogram_bot import AiogramBot
-from app.telegram.middlewares import get_global_middlewares
+from app.telegram.middlewares import MiddlewareDependencies, get_global_middlewares
 from app.telegram.routers import get_routers
 
 logger = logging.getLogger(__name__)
@@ -26,10 +26,19 @@ class BotBuilder:
     ----------
     config:
         Validated application settings.
+    middleware_deps:
+        Optional dependency container for the middleware stack.  When
+        omitted, DB-dependent middlewares fall back to pass-through mode,
+        which is useful for lightweight unit tests.
     """
 
-    def __init__(self, config: AppConfig) -> None:
+    def __init__(
+        self,
+        config: AppConfig,
+        middleware_deps: MiddlewareDependencies | None = None,
+    ) -> None:
         self._config = config
+        self._middleware_deps = middleware_deps
 
     def create_dispatcher(
         self,
@@ -57,7 +66,7 @@ class BotBuilder:
             events_isolation=RedisEventIsolation(redis=redis_client),
         )
 
-        for mw in middlewares or get_global_middlewares():
+        for mw in middlewares or get_global_middlewares(self._middleware_deps):
             dp.update.outer_middleware(mw)
             logger.debug(
                 "Registered global middleware %s",
