@@ -139,6 +139,18 @@ class DomainError(MongoOpsError):
         super().__init__(code="DOMAIN_ERROR", message=message, details=details)
 
 
+class JobNotFoundError(JobError):
+    """Raised when a referenced backup job does not exist in the repository."""
+
+    def __init__(
+        self,
+        message: str = "Job not found",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message=message, details=details)
+        self.code = "JOB_NOT_FOUND"
+
+
 class InvalidStateTransitionError(JobError):
     """Raised when a :class:`~app.domain.entities.backup_job.BackupJob` receives
     an illegal state transition.

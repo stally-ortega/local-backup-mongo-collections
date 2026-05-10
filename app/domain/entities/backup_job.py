@@ -104,6 +104,11 @@ class BackupJob(BaseModel):
         self._transition(JobStatus.SUCCESS)
         self.completed_at = datetime.utcnow()
 
+    def mark_partial_success(self) -> None:
+        """Move job from ``RUNNING`` to ``PARTIAL_SUCCESS``."""
+        self._transition(JobStatus.PARTIAL_SUCCESS)
+        self.completed_at = datetime.utcnow()
+
     def mark_failed(self, error_log: str | None = None) -> None:
         """Move job from ``RUNNING`` or ``RETRYING`` to ``FAILED``."""
         self._transition(JobStatus.FAILED)

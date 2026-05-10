@@ -8,7 +8,7 @@ infrastructure (Telegram, mongodump, Redis, RQ, etc.).
 
 from datetime import datetime
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from app.domain.entities.size_report import SizeReport
 from app.domain.value_objects.dtos import CollectionTarget
@@ -154,6 +154,18 @@ class IFsUtils(Protocol):
 
     async def get_modification_time(self, path: Path) -> datetime:
         """Return the last modification time of *path*."""
+        ...
+
+
+class IRetentionManager(Protocol):
+    """Port for backup retention policy enforcement."""
+
+    async def apply_policy(self) -> dict[str, Any]:
+        """Apply retention rules and return a summary of deletions."""
+        ...
+
+    async def get_storage_stats(self) -> dict[str, Any]:
+        """Return aggregated metrics for the backup storage area."""
         ...
 
 

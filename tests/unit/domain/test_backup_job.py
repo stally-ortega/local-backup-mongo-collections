@@ -60,7 +60,7 @@ class TestValidTransitions:
     def test_running_to_partial(self, pending_job: BackupJob) -> None:
         pending_job.mark_queued()
         pending_job.mark_running()
-        pending_job._transition(JobStatus.PARTIAL_SUCCESS)
+        pending_job.mark_partial_success()
         assert pending_job.status == JobStatus.PARTIAL_SUCCESS
 
     def test_pending_to_cancelled(self, pending_job: BackupJob) -> None:

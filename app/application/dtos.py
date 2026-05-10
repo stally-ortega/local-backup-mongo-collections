@@ -36,3 +36,22 @@ class RequestBackupResult(BaseModel):
 
     job_id: str = Field(..., min_length=1)
     status: JobStatus
+
+
+class ExecuteBackupDto(BaseModel):
+    """Input payload for the backup execution use case."""
+
+    job_id: str = Field(..., min_length=1)
+    correlation_id: str | None = None
+
+
+class ExecuteBackupResult(BaseModel):
+    """Outcome of a backup execution."""
+
+    job_id: str = Field(..., min_length=1)
+    status: JobStatus
+    completed_collections: int
+    failed_collections: int
+    total_collections: int
+    bytes_processed: int
+    error_log: str | None = None
