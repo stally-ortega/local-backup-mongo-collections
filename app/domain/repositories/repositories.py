@@ -1,0 +1,99 @@
+"""Repository interfaces (ports) for the domain layer.
+
+Implementations live in ``app/infrastructure/persistence/`` and are
+injected into application services at runtime.
+"""
+
+from typing import Protocol
+
+from app.domain.entities.audit_log import AuditLog
+from app.domain.entities.backup_job import BackupJob
+from app.domain.entities.user import User
+from app.domain.value_objects.enums import JobStatus, UserRole
+
+
+class IUserRepository(Protocol):
+    """Persistence port for :class:`~app.domain.entities.user.User`."""
+
+    async def get_by_telegram_id(self, telegram_id: int) -> User | None:
+        """Fetch a user by their Telegram ID."""
+        ...
+
+    async def list_all(self) -> list[User]:
+        """Return every registered user."""
+        ...
+
+    async def save(self, user: User) -> None:
+        """Persist a new or updated user."""
+        ...
+
+    async def update_role(self, telegram_id: int, role: UserRole) -> User | None:
+        """Change the role of an existing user."""
+        ...
+
+
+class IJobRepository(Protocol):
+    """Persistence port for :class:`~app.domain.entities.backup_job.BackupJob`."""
+
+    async def get_by_id(self, job_id: str) -> BackupJob | None:
+        """Fetch a job by its unique identifier."""
+        ...
+
+    async def list_by_user(self, telegram_id: int) -> list[BackupJob]:
+        """Return all jobs requested by the given Telegram user."""
+        ...
+
+    async def list_by_status(self, status: JobStatus) -> list[BackupJob]:
+        """Return all jobs in the supplied status."""
+        ...
+
+    async def save(self, job: BackupJob) -> None:
+        """Persist a new or updated job."""
+        ...
+
+    async def update_status(self, job_id: str, status: JobStatus) -> BackupJob | None:
+        """Update the status of an existing job."""
+        ...
+
+
+class IAuditRepository(Protocol):
+    """Persistence port for :class:`~app.domain.entities.audit_log.AuditLog`."""
+
+    async def log(self, entry: AuditLog) -> None:
+        """Persist an audit entry."""
+        ...
+
+    async def list_by_user(self, telegram_id: int) -> list[AuditLog]:
+        """Return audit entries for a specific Telegram user."""
+        ...
+
+    async def list_by_job(self, job_id: str) -> list[AuditLog]:
+        """Return audit entries related to a specific job."""
+        ...
+
+
+class IRateLimitRepository(Protocol):
+    """Persistence port for :class:`~app.domain.entities.rate_limit.RateLimit`."""
+
+    async def check_limit(
+        self,
+        telegram_id: int,
+        action: str,
+        max_allowed: int,
+        window_seconds: int,
+    ) -> bool:
+        """Return ``True`` when the user has not exceeded the rate limit."""
+        ...
+
+    async def increment(
+        self,
+        telegram_id: int,
+        action: str,
+        window_seconds: int,
+    ) -> int:
+        """Bump the counter and return the new value."""
+        ...
+
+    async def reset(self, telegram_id: int, action: str) -> None:
+        """Zero out the counter for the given user and action."""
+        ...
