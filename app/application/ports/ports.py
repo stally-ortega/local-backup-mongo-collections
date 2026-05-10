@@ -6,6 +6,7 @@ interactors can declare their dependencies without coupling to concrete
 infrastructure (Telegram, mongodump, Redis, RQ, etc.).
 """
 
+from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -141,6 +142,18 @@ class IFsUtils(Protocol):
 
     async def delete(self, path: Path) -> None:
         """Remove *path* (file or directory tree)."""
+        ...
+
+    async def list_files(self, path: Path, pattern: str = "*") -> list[Path]:
+        """Return files directly under *path* matching *pattern*."""
+        ...
+
+    async def list_files_recursive(self, path: Path, pattern: str = "**/*") -> list[Path]:
+        """Return files recursively under *path* matching *pattern*."""
+        ...
+
+    async def get_modification_time(self, path: Path) -> datetime:
+        """Return the last modification time of *path*."""
         ...
 
 

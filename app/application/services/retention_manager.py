@@ -1,0 +1,203 @@
+"""Application service that enforces backup retention policies.
+
+Cleans up expired archives based on age rules and global storage caps
+while guaranteeing at least one surviving backup per type.
+"""
+
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+from app.application.ports.ports import IFsUtils
+
+
+class RetentionManager:
+    """Evaluates and applies retention rules on the local backup filesystem.
+
+    Parameters
+    ----------
+    fs_utils:
+        Async filesystem adapter.
+    backup_base_path:
+        Root directory where backups are stored.
+    retention_full_weeks:
+        How many weeks to keep ``full`` backups.
+    retention_custom_weeks:
+        How many weeks to keep ``custom`` backups.
+    retention_max_gb:
+        Global ceiling in gigabytes. If exceeded, oldest backups are
+        removed first (respecting the one-per-type minimum).
+    """
+
+    def __init__(
+        self,
+        *,
+        fs_utils: IFsUtils,
+        backup_base_path: Path,
+        retention_full_weeks: int,
+        retention_custom_weeks: int,
+        retention_max_gb: int,
+    ) -> None:
+        self._fs = fs_utils
+        self._base_path = backup_base_path
+        self._full_weeks = retention_full_weeks
+        self._custom_weeks = retention_custom_weeks
+        self._max_bytes = retention_max_gb * 1024 * 1024 * 1024
+
+    async def get_storage_stats(self) -> dict[str, Any]:
+        """Return aggregated metrics for the backup storage area."""
+        total_bytes, used_bytes, free_bytes = await self._fs.get_disk_usage(self._base_path)
+        backup_size = await self._fs.get_folder_size(self._base_path)
+        files = await self._fs.list_files_recursive(self._base_path, pattern="backup_*.tar.gz")
+        return {
+            "disk_total_bytes": total_bytes,
+            "disk_used_bytes": used_bytes,
+            "disk_free_bytes": free_bytes,
+            "backup_size_bytes": backup_size,
+            "backup_file_count": len(files),
+        }
+
+    async def apply_policy(self) -> dict[str, Any]:
+        """Remove backups that violate age or global-size rules.
+
+        Returns a summary dict with counts and bytes reclaimed.
+        """
+        files = await self._fs.list_files_recursive(self._base_path, pattern="backup_*.tar.gz")
+        if not files:
+            return {"deleted_count": 0, "reclaimed_bytes": 0, "errors": []}
+
+        now = datetime.utcnow()
+        cutoff_full = now - timedelta(weeks=self._full_weeks)
+        cutoff_custom = now - timedelta(weeks=self._custom_weeks)
+
+        # Build a list of backup descriptors with metadata.
+        backups: list[dict[str, Any]] = []
+        for file_path in files:
+            mtime = await self._fs.get_modification_time(file_path)
+            btype = self._classify_type(file_path)
+            size = await self._fs.get_folder_size(file_path)
+            backups.append(
+                {
+                    "path": file_path,
+                    "type": btype,
+                    "mtime": mtime,
+                    "size": size,
+                }
+            )
+
+        # Separate by type so we can enforce the "at least one" minimum.
+        full_backups = sorted(
+            [b for b in backups if b["type"] == "full"],
+            key=lambda b: b["mtime"],
+        )
+        custom_backups = sorted(
+            [b for b in backups if b["type"] == "custom"],
+            key=lambda b: b["mtime"],
+        )
+
+        to_delete: set[Path] = set()
+
+        # Age-based pruning.
+        to_delete.update(self._prune_by_age(full_backups, cutoff_full, minimum_keep=1))
+        to_delete.update(self._prune_by_age(custom_backups, cutoff_custom, minimum_keep=1))
+
+        # Size-based pruning (oldest first) if still over the global cap.
+        remaining = [b for b in backups if b["path"] not in to_delete]
+        total_size = sum(b["size"] for b in remaining)
+        if total_size > self._max_bytes:
+            to_delete.update(
+                self._prune_by_size(
+                    remaining,
+                    total_size,
+                    self._max_bytes,
+                    full_backups=[b for b in remaining if b["type"] == "full"],
+                    custom_backups=[b for b in remaining if b["type"] == "custom"],
+                )
+            )
+
+        deleted_count = 0
+        reclaimed_bytes = 0
+        errors: list[str] = []
+        for path in to_delete:
+            try:
+                # For a single file, get_folder_size returns its own size.
+                size = await self._fs.get_folder_size(path)
+                await self._fs.delete(path)
+                deleted_count += 1
+                reclaimed_bytes += size
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"Failed to delete {path}: {exc}")
+
+        return {
+            "deleted_count": deleted_count,
+            "reclaimed_bytes": reclaimed_bytes,
+            "errors": errors,
+        }
+
+    @staticmethod
+    def _classify_type(path: Path) -> str:
+        """Derive backup type from filename or parent directory name."""
+        name = path.name.lower()
+        if "full" in name:
+            return "full"
+        if "custom" in name:
+            return "custom"
+        # Fallback to parent directory name.
+        parent = path.parent.name.lower()
+        if parent == "full":
+            return "full"
+        if parent == "custom":
+            return "custom"
+        return "unknown"
+
+    @staticmethod
+    def _prune_by_age(
+        sorted_backups: list[dict[str, Any]],
+        cutoff: datetime,
+        *,
+        minimum_keep: int = 1,
+    ) -> set[Path]:
+        """Return paths older than *cutoff* while keeping *minimum_keep* items."""
+        to_delete: set[Path] = set()
+        for backup in sorted_backups:
+            if backup["mtime"] < cutoff:
+                # Ensure we never delete the last N items.
+                kept = len(sorted_backups) - len(to_delete)
+                if kept > minimum_keep:
+                    to_delete.add(backup["path"])
+        return to_delete
+
+    @staticmethod
+    def _prune_by_size(
+        all_backups: list[dict[str, Any]],
+        current_size: int,
+        max_size: int,
+        *,
+        full_backups: list[dict[str, Any]],
+        custom_backups: list[dict[str, Any]],
+    ) -> set[Path]:
+        """Remove oldest backups until *current_size* is below *max_size*.
+
+        Respects a minimum of one backup per known type.
+        """
+        to_delete: set[Path] = set()
+        # Sort globally by mtime (oldest first).
+        candidates = sorted(all_backups, key=lambda b: b["mtime"])
+
+        for backup in candidates:
+            if current_size <= max_size:
+                break
+
+            btype = backup["type"]
+            remaining_full = [b for b in full_backups if b["path"] not in to_delete]
+            remaining_custom = [b for b in custom_backups if b["path"] not in to_delete]
+
+            if btype == "full" and len(remaining_full) <= 1:
+                continue
+            if btype == "custom" and len(remaining_custom) <= 1:
+                continue
+
+            to_delete.add(backup["path"])
+            current_size -= backup["size"]
+
+        return to_delete

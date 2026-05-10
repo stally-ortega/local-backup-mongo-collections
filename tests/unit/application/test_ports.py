@@ -1,5 +1,6 @@
 """Tests verifying application port protocol shapes and fake adapters."""
 
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -116,6 +117,15 @@ class _FakeFsUtils:
     async def delete(self, path: Path) -> None:
         pass
 
+    async def list_files(self, path: Path, pattern: str = "*") -> list[Path]:
+        return []
+
+    async def list_files_recursive(self, path: Path, pattern: str = "**/*") -> list[Path]:
+        return []
+
+    async def get_modification_time(self, path: Path) -> datetime:
+        return datetime.utcnow()
+
 
 class _FakeMongoMetadata:
     async def list_databases(self, cluster_uri_hash: str) -> list[str]:
@@ -230,6 +240,24 @@ class TestFsUtilsPort:
         fs: IFsUtils = _FakeFsUtils()
         size = await fs.get_folder_size(Path("/tmp"))
         assert size == 0
+
+    @pytest.mark.asyncio
+    async def test_list_files(self) -> None:
+        fs: IFsUtils = _FakeFsUtils()
+        files = await fs.list_files(Path("/tmp"), pattern="*.txt")
+        assert files == []
+
+    @pytest.mark.asyncio
+    async def test_get_modification_time(self) -> None:
+        fs: IFsUtils = _FakeFsUtils()
+        mtime = await fs.get_modification_time(Path("/tmp/file.txt"))
+        assert isinstance(mtime, datetime)
+
+    @pytest.mark.asyncio
+    async def test_list_files_recursive(self) -> None:
+        fs: IFsUtils = _FakeFsUtils()
+        files = await fs.list_files_recursive(Path("/tmp"), pattern="**/*.txt")
+        assert files == []
 
 
 class TestMongoMetadataPort:
