@@ -1,5 +1,6 @@
 """Unit tests for ExecuteBackupUseCase."""
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -37,10 +38,14 @@ class _FakeJobRepo:
     async def get_by_id(self, job_id: str) -> BackupJob | None:
         return self._jobs.get(job_id)
 
-    async def list_by_user(self, telegram_id: int) -> list[BackupJob]:
+    async def list_by_user(
+        self, telegram_id: int, page: int = 1, page_size: int = 50
+    ) -> list[BackupJob]:
         return [j for j in self._jobs.values() if j.requester_telegram_id == telegram_id]
 
-    async def list_by_status(self, status: JobStatus) -> list[BackupJob]:
+    async def list_by_status(
+        self, status: JobStatus, page: int = 1, page_size: int = 50
+    ) -> list[BackupJob]:
         return [j for j in self._jobs.values() if j.status == status]
 
     async def save(self, job: BackupJob) -> None:
@@ -196,6 +201,9 @@ class _FakeAuditRepo:
         return [e for e in self.entries if e.telegram_id == telegram_id]
 
     async def list_by_job(self, job_id: str) -> list[AuditLog]:
+        return []
+
+    async def list_by_date_range(self, start: datetime, end: datetime) -> list[AuditLog]:
         return []
 
 

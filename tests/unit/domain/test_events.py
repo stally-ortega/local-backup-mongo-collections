@@ -37,7 +37,7 @@ class TestBackupStarted:
         payload = BackupStartedPayload(job_id="j1")
         event = DomainEvent.backup_started(payload)
         assert event.event_type == "BACKUP_STARTED"
-        started = cast(BackupStartedPayload, event.payload)
+        started = cast("BackupStartedPayload", event.payload)
         assert started.job_id == "j1"
         assert event.correlation_id is None
 
@@ -52,7 +52,7 @@ class TestCollectionBackupCompleted:
         payload = CollectionBackupCompletedPayload(job_id="j1", result=target)
         event = DomainEvent.collection_backup_completed(payload)
         assert event.event_type == "COLLECTION_BACKUP_COMPLETED"
-        coll = cast(CollectionBackupCompletedPayload, event.payload)
+        coll = cast("CollectionBackupCompletedPayload", event.payload)
         assert coll.result.status == CollectionBackupStatus.SUCCESS
 
 
@@ -61,7 +61,7 @@ class TestBackupCompleted:
         payload = BackupCompletedPayload(job_id="j1", status=JobStatus.SUCCESS)
         event = DomainEvent.backup_completed(payload)
         assert event.event_type == "BACKUP_COMPLETED"
-        completed = cast(BackupCompletedPayload, event.payload)
+        completed = cast("BackupCompletedPayload", event.payload)
         assert completed.status == JobStatus.SUCCESS
 
 
@@ -70,7 +70,7 @@ class TestBackupFailed:
         payload = BackupFailedPayload(job_id="j1", error_log="disk full")
         event = DomainEvent.backup_failed(payload)
         assert event.event_type == "BACKUP_FAILED"
-        failed = cast(BackupFailedPayload, event.payload)
+        failed = cast("BackupFailedPayload", event.payload)
         assert failed.error_log == "disk full"
 
 
@@ -79,7 +79,7 @@ class TestJobCancelled:
         payload = JobCancelledPayload(job_id="j1", cancelled_by=999)
         event = DomainEvent.job_cancelled(payload)
         assert event.event_type == "JOB_CANCELLED"
-        cancelled = cast(JobCancelledPayload, event.payload)
+        cancelled = cast("JobCancelledPayload", event.payload)
         assert cancelled.cancelled_by == 999
 
 

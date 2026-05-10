@@ -23,6 +23,9 @@ class _FakeAuditRepository:
     async def list_by_job(self, job_id: str) -> list[AuditLog]:
         return []
 
+    async def list_by_date_range(self, start: datetime, end: datetime) -> list[AuditLog]:
+        return []
+
 
 @pytest.fixture
 def fake_repo() -> _FakeAuditRepository:
@@ -67,6 +70,7 @@ class TestAuditServiceLogAction:
             command="/size",
             result="FAILED",
             duration_ms=150,
+            cluster_uri_hash="hash123",
             context={"db": "production"},
         )
 
@@ -77,6 +81,8 @@ class TestAuditServiceLogAction:
         assert entry.command == "/size"
         assert entry.result == "FAILED"
         assert entry.duration_ms == 150
+        assert entry.cluster_uri_hash == "hash123"
+        assert entry.details == {"db": "production"}
 
     @pytest.mark.asyncio
     async def test_log_action_for_inactive_user(
@@ -126,3 +132,5 @@ class TestAuditServiceLogJobEvent:
         assert entry.action == "JOB_FAILED"
         assert entry.result == "FAILED"
         assert entry.telegram_id == 7
+        assert entry.job_id == "job-456"
+        assert entry.details == {"error": "disk full"}

@@ -47,3 +47,11 @@ class AuditLogORM(Base):
         Text,
         comment="Flexible JSON blob for extended context",
     )
+    ip_address: Mapped[str | None] = mapped_column(
+        String(45),
+        comment="IPv4 or IPv6 address of the client",
+    )
+    user_agent: Mapped[str | None] = mapped_column(
+        Text,
+        comment="Client user-agent string",
+    )

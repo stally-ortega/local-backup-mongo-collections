@@ -4,6 +4,7 @@ Implementations live in ``app/infrastructure/persistence/`` and are
 injected into application services at runtime.
 """
 
+from datetime import datetime
 from typing import Protocol
 
 from app.domain.entities.audit_log import AuditLog
@@ -39,11 +40,15 @@ class IJobRepository(Protocol):
         """Fetch a job by its unique identifier."""
         ...
 
-    async def list_by_user(self, telegram_id: int) -> list[BackupJob]:
+    async def list_by_user(
+        self, telegram_id: int, page: int = 1, page_size: int = 50
+    ) -> list[BackupJob]:
         """Return all jobs requested by the given Telegram user."""
         ...
 
-    async def list_by_status(self, status: JobStatus) -> list[BackupJob]:
+    async def list_by_status(
+        self, status: JobStatus, page: int = 1, page_size: int = 50
+    ) -> list[BackupJob]:
         """Return all jobs in the supplied status."""
         ...
 
@@ -69,6 +74,14 @@ class IAuditRepository(Protocol):
 
     async def list_by_job(self, job_id: str) -> list[AuditLog]:
         """Return audit entries related to a specific job."""
+        ...
+
+    async def list_by_date_range(
+        self,
+        start: datetime,
+        end: datetime,
+    ) -> list[AuditLog]:
+        """Return audit entries whose timestamp falls within [*start*, *end*]."""
         ...
 
 

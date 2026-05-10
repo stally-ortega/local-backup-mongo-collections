@@ -1,5 +1,7 @@
 """Tests verifying repository protocol shapes and fake implementations."""
 
+from datetime import datetime
+
 import pytest
 
 from app.domain.entities.audit_log import AuditLog
@@ -32,10 +34,14 @@ class _FakeJobRepo:
     async def get_by_id(self, job_id: str) -> BackupJob | None:
         return BackupJob.create_full(job_id, 1, "hash")
 
-    async def list_by_user(self, telegram_id: int) -> list[BackupJob]:
+    async def list_by_user(
+        self, telegram_id: int, page: int = 1, page_size: int = 50
+    ) -> list[BackupJob]:
         return []
 
-    async def list_by_status(self, status: JobStatus) -> list[BackupJob]:
+    async def list_by_status(
+        self, status: JobStatus, page: int = 1, page_size: int = 50
+    ) -> list[BackupJob]:
         return []
 
     async def save(self, job: BackupJob) -> None:
@@ -53,6 +59,9 @@ class _FakeAuditRepo:
         return []
 
     async def list_by_job(self, job_id: str) -> list[AuditLog]:
+        return []
+
+    async def list_by_date_range(self, start: datetime, end: datetime) -> list[AuditLog]:
         return []
 
 

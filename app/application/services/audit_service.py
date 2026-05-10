@@ -25,6 +25,7 @@ class AuditService:
         command: str | None = None,
         result: str = "SUCCESS",
         duration_ms: int | None = None,
+        cluster_uri_hash: str | None = None,
         context: dict[str, Any] | None = None,
     ) -> None:
         """Persist a generic user action to the audit trail.
@@ -43,6 +44,8 @@ class AuditService:
             Outcome string (default ``SUCCESS``).
         duration_ms:
             Optional elapsed time in milliseconds.
+        cluster_uri_hash:
+            Optional SHA-256 hash of the cluster URI at the time of the action.
         context:
             Extra key-value pairs merged into ``details``.
         """
@@ -53,6 +56,8 @@ class AuditService:
             command=command,
             result=result,
             duration_ms=duration_ms,
+            cluster_uri_hash=cluster_uri_hash,
+            details=context,
         )
         await self._repository.log(entry)
 
@@ -85,7 +90,9 @@ class AuditService:
             action=event,
             topic="JOB_EVENTS",
             command=None,
+            job_id=job_id,
             result=result,
             duration_ms=None,
+            details=details,
         )
         await self._repository.log(entry)

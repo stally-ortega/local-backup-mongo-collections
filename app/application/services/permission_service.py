@@ -36,10 +36,7 @@ class PermissionService:
             if user.role not in allowed:
                 return False
         else:
-            if not user.can_execute(command, topic):
-                return False
-            # user.can_execute already validates topic; short-circuit below
-            return True
+            return user.can_execute(command, topic)
 
         try:
             topic_enum = TopicType(topic)

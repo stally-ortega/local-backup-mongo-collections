@@ -1,5 +1,7 @@
 """Unit tests for QuerySizeUseCase."""
 
+from datetime import datetime
+
 import pytest
 
 from app.application.dtos import QuerySizeDto, QuerySizeResult
@@ -56,6 +58,9 @@ class _FakeAuditRepo:
         return [e for e in self.entries if e.telegram_id == telegram_id]
 
     async def list_by_job(self, job_id: str) -> list[AuditLog]:
+        return []
+
+    async def list_by_date_range(self, start: datetime, end: datetime) -> list[AuditLog]:
         return []
 
 

@@ -27,7 +27,7 @@ class _FakeFsUtils:
 
     async def get_folder_size(self, path: Path) -> int:
         if path in self._files:
-            return cast(int, self._files[path]["size"])
+            return cast("int", self._files[path]["size"])
         total = 0
         for p, meta in self._files.items():
             # Simple prefix match for directory contents.
@@ -66,7 +66,7 @@ class _FakeFsUtils:
         return results
 
     async def get_modification_time(self, path: Path) -> datetime:
-        return cast(datetime, self._files[path]["mtime"])
+        return cast("datetime", self._files[path]["mtime"])
 
 
 @pytest.fixture
