@@ -99,6 +99,29 @@ class RepositoryError(MongoOpsError):
         super().__init__(code="REPOSITORY_ERROR", message=message, details=details)
 
 
+class RateLimitError(MongoOpsError):
+    """Raised when a user exceeds the allowed rate for an operation."""
+
+    def __init__(
+        self,
+        message: str = "Rate limit exceeded",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(code="RATE_LIMIT_EXCEEDED", message=message, details=details)
+
+
+class DiskSpaceError(BackupEngineError):
+    """Raised when available disk space is below the configured threshold."""
+
+    def __init__(
+        self,
+        message: str = "Insufficient disk space",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message=message, details=details)
+        self.code = "DISK_SPACE_ERROR"
+
+
 # ---------------------------------------------------------------------------
 # Legacy / fine-grained exceptions kept for backward compatibility.
 # They inherit from the categories above so ``isinstance`` checks still work.
