@@ -10,7 +10,7 @@ from app.domain.entities.backup_job import BackupJob
 from app.domain.entities.size_report import CollectionSize, DatabaseSize
 from app.domain.entities.user import User
 from app.domain.value_objects.dtos import CollectionTarget
-from app.domain.value_objects.enums import BackupType, JobStatus
+from app.domain.value_objects.enums import BackupType, JobStatus, UserRole
 
 
 class CreateJobRequest(BaseModel):
@@ -136,3 +136,23 @@ class QueryUsersResult(BaseModel):
     page: int
     page_size: int
     total: int
+
+
+class AddUserDto(BaseModel):
+    """Input payload for the add-user use case."""
+
+    requester: User
+    telegram_id: int = Field(..., gt=0)
+    username: str = Field(..., min_length=1)
+    role: UserRole
+    topic: str = "ADMIN"
+    command: str | None = None
+
+
+class AddUserResult(BaseModel):
+    """Outcome of adding a user to the whitelist."""
+
+    telegram_id: int
+    username: str
+    role: UserRole
+    is_new: bool

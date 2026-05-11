@@ -36,6 +36,8 @@ from app.infrastructure.persistence.database import (
 )
 from app.infrastructure.persistence.sql_audit_repository import SQLAuditRepository
 from app.infrastructure.persistence.sql_job_repository import SQLJobRepository
+from app.infrastructure.queue.redis_connection import RedisConnection
+from app.infrastructure.queue.redis_lock_manager import RedisLockManager
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +76,8 @@ async def _execute(job_id: str) -> None:
             # Infrastructure adapters
             mongo_conn = MongoConnection.from_config(config)
             mongo_conn.connect()
+            redis_conn = RedisConnection.from_config(config)
+            redis_conn.connect()
             try:
                 backup_engine = MongodumpBackupEngine(config.mongodb_uri)
                 mongo_metadata = MongoMetadataAdapter(mongo_conn)
@@ -85,6 +89,7 @@ async def _execute(job_id: str) -> None:
                     retention_custom_weeks=config.retention_custom_weeks,
                     retention_max_gb=config.retention_max_gb,
                 )
+                lock_manager = RedisLockManager(redis_conn)
 
                 use_case = ExecuteBackupUseCase(
                     job_repository=job_repo,
@@ -94,6 +99,7 @@ async def _execute(job_id: str) -> None:
                     notifier=notifier,
                     retention_manager=retention_manager,
                     fs_utils=fs_utils,
+                    lock_manager=lock_manager,
                     backup_base_path=config.backup_base_path,
                 )
 
@@ -101,6 +107,7 @@ async def _execute(job_id: str) -> None:
                 await use_case.execute(dto, cancel_check=_cancel_check)
             finally:
                 mongo_conn.close()
+                redis_conn.close()
     finally:
         await dispose_engine(engine)
 

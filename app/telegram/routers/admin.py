@@ -10,6 +10,8 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
 from app.application.dtos import (
+    AddUserDto,
+    AddUserResult,
     CancelJobDto,
     CancelJobResult,
     QueryJobsDto,
@@ -24,6 +26,7 @@ from app.domain.value_objects.enums import UserRole
 from app.infrastructure.logging.structured_logger import get_logger
 from app.telegram.dependencies import (
     TelegramDependencies,
+    build_add_user_use_case,
     build_cancel_job_use_case,
     build_list_jobs_use_case,
     build_list_users_use_case,
@@ -258,6 +261,78 @@ async def cmd_cancel(
     await message.answer(
         f"✅ Job <code>{result.job_id}</code> cancelado.\n"
         f"Nuevo estado: <b>{result.status.value}</b>"
+    )
+
+
+# ---------------------------------------------------------------------------
+# /auth
+# ---------------------------------------------------------------------------
+
+
+@admin_router.message(Command("auth"))
+async def cmd_auth(
+    message: Message,
+    telegram_deps: TelegramDependencies,
+    user: User,
+) -> None:
+    """Add a new user to the whitelist (ADMIN only).
+
+    Usage: ``/auth <telegram_id> <username> <role>``
+    """
+    if not user.has_role(UserRole.ADMIN):
+        await message.answer("No tienes permiso para gestionar usuarios.")
+        return
+
+    args = message.text.split(maxsplit=3) if message.text else []
+    if len(args) < 4:
+        await message.answer(
+            "Uso: /auth <telegram_id> <username> <role>\nRoles: ADMIN, DBA, OPERATOR, READONLY"
+        )
+        return
+
+    raw_id = args[1].strip()
+    username = args[2].strip()
+    raw_role = args[3].strip().upper()
+
+    try:
+        telegram_id = int(raw_id)
+    except ValueError:
+        await message.answer("telegram_id debe ser un número entero.")
+        return
+
+    if telegram_id <= 0:
+        await message.answer("telegram_id debe ser un número positivo.")
+        return
+
+    try:
+        role = UserRole(raw_role)
+    except ValueError:
+        await message.answer(f"Rol '{raw_role}' no válido. Roles: ADMIN, DBA, OPERATOR, READONLY")
+        return
+
+    dto = AddUserDto(
+        requester=user,
+        telegram_id=telegram_id,
+        username=username,
+        role=role,
+        topic="ADMIN",
+        command="AUTH",
+    )
+
+    async with telegram_deps.session_factory() as session:
+        use_case = build_add_user_use_case(telegram_deps, session)
+        try:
+            result: AddUserResult = await use_case.execute(dto)
+        except PermissionError:
+            await message.answer("No tienes permiso para gestionar usuarios.")
+            return
+        await session.commit()
+
+    status = "nuevo" if result.is_new else "actualizado"
+    await message.answer(
+        f"✅ Usuario <code>{result.telegram_id}</code> ({result.username}) "
+        f"agregado/actualizado con rol <b>{result.role.value}</b>.\n"
+        f"Estado: {status}."
     )
 
 

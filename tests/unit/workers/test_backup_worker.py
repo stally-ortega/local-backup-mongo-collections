@@ -90,6 +90,8 @@ class TestExecute:
     @patch.object(worker_module, "create_engine")
     @patch.object(worker_module, "create_session_factory")
     @patch.object(worker_module, "dispose_engine")
+    @patch.object(worker_module, "RedisConnection")
+    @patch.object(worker_module, "RedisLockManager")
     @patch.object(worker_module, "MongoConnection")
     @patch.object(worker_module, "MongodumpBackupEngine")
     @patch.object(worker_module, "MongoMetadataAdapter")
@@ -102,12 +104,15 @@ class TestExecute:
         _mock_meta_adapter_cls: MagicMock,
         _mock_engine_cls: MagicMock,
         _mock_mongo_conn_cls: MagicMock,
+        _mock_lock_manager_cls: MagicMock,
+        _mock_redis_conn_cls: MagicMock,
         mock_dispose: MagicMock,
         mock_session_factory: MagicMock,
         mock_create_engine: MagicMock,
     ) -> None:
         config = MagicMock()
         config.mongodb_uri = "mongodb://localhost:27017"
+        config.redis_url = "redis://localhost:6379/0"
         config.backup_base_path = MagicMock()
         config.retention_full_weeks = 4
         config.retention_custom_weeks = 2

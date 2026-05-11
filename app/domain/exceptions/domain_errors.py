@@ -165,6 +165,18 @@ class InvalidStateTransitionError(JobError):
         self.code = "INVALID_STATE_TRANSITION"
 
 
+class JobAlreadyRunningError(JobError):
+    """Raised when a backup cannot start because another one is in progress."""
+
+    def __init__(
+        self,
+        message: str = "A backup job is already running",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message=message, details=details)
+        self.code = "JOB_ALREADY_RUNNING"
+
+
 class PermissionDeniedError(PermissionError):
     """Raised when a user lacks the required role for an operation."""
 

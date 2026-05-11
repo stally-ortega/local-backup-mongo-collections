@@ -4,15 +4,17 @@ Orchestrates permission checks, rate limiting, disk-space validation,
 job creation, audit logging, and queue enqueueing.
 """
 
+from contextlib import suppress
 from pathlib import Path
 
 from app.application.dtos import CreateJobRequest, RequestBackupDto, RequestBackupResult
-from app.application.ports.ports import IFsUtils
+from app.application.ports.ports import IFsUtils, ILockManager
 from app.application.services.audit_service import AuditService
 from app.application.services.job_manager import JobManager
 from app.application.services.permission_service import PermissionService
 from app.domain.exceptions.domain_errors import (
     DiskSpaceError,
+    JobAlreadyRunningError,
     PermissionError,
     RateLimitError,
 )
@@ -45,6 +47,9 @@ class RequestBackupUseCase:
         Minimum free bytes required on the backup volume.
     """
 
+    _GLOBAL_LOCK: str = "backup:global"
+    _LOCK_TTL: int = 3600  # 1 hour
+
     def __init__(
         self,
         *,
@@ -53,6 +58,7 @@ class RequestBackupUseCase:
         fs_utils: IFsUtils,
         job_manager: JobManager,
         audit_service: AuditService,
+        lock_manager: ILockManager | None = None,
         backup_base_path: Path,
         max_backup_rate: int = 1,
         backup_rate_window: int = 60,
@@ -63,6 +69,7 @@ class RequestBackupUseCase:
         self._fs_utils = fs_utils
         self._job_manager = job_manager
         self._audit_service = audit_service
+        self._lock_manager = lock_manager
         self._backup_base_path = backup_base_path
         self._max_backup_rate = max_backup_rate
         self._backup_rate_window = backup_rate_window
@@ -106,53 +113,71 @@ class RequestBackupUseCase:
                 },
             )
 
-        # 3. Disk-space guard
-        total_bytes, used_bytes, free_bytes = await self._fs_utils.get_disk_usage(
-            self._backup_base_path
-        )
-        if free_bytes < self._min_free_disk_bytes:
-            raise DiskSpaceError(
-                message=(
-                    f"Insufficient disk space: {free_bytes} bytes free, "
-                    f"{self._min_free_disk_bytes} bytes required"
-                ),
-                details={
-                    "free_bytes": free_bytes,
-                    "required_bytes": self._min_free_disk_bytes,
-                    "total_bytes": total_bytes,
-                    "used_bytes": used_bytes,
-                },
+        # 3. Distributed lock guard (global backup lock)
+        lock_token: str | None = None
+        if self._lock_manager is not None:
+            lock_token = await self._lock_manager.acquire(
+                self._GLOBAL_LOCK,
+                ttl_seconds=self._LOCK_TTL,
+            )
+            if lock_token is None:
+                raise JobAlreadyRunningError(
+                    message="Another backup is currently in progress. Please wait and retry.",
+                    details={"user_id": dto.user.telegram_id},
+                )
+
+        try:
+            # 4. Disk-space guard
+            total_bytes, used_bytes, free_bytes = await self._fs_utils.get_disk_usage(
+                self._backup_base_path
+            )
+            if free_bytes < self._min_free_disk_bytes:
+                raise DiskSpaceError(
+                    message=(
+                        f"Insufficient disk space: {free_bytes} bytes free, "
+                        f"{self._min_free_disk_bytes} bytes required"
+                    ),
+                    details={
+                        "free_bytes": free_bytes,
+                        "required_bytes": self._min_free_disk_bytes,
+                        "total_bytes": total_bytes,
+                        "used_bytes": used_bytes,
+                    },
+                )
+
+            # 5. Create job
+            create_req = CreateJobRequest(
+                requester_telegram_id=dto.user.telegram_id,
+                backup_type=dto.backup_type,
+                cluster_uri_hash=dto.cluster_uri_hash,
+                target_collections=dto.target_collections,
+            )
+            job = await self._job_manager.create_job(create_req)
+
+            # 6. Audit the user action
+            await self._audit_service.log_action(
+                action="BACKUP_REQUESTED",
+                user=dto.user,
+                topic=dto.topic,
+                command=dto.command,
+                result="SUCCESS",
             )
 
-        # 4. Create job
-        create_req = CreateJobRequest(
-            requester_telegram_id=dto.user.telegram_id,
-            backup_type=dto.backup_type,
-            cluster_uri_hash=dto.cluster_uri_hash,
-            target_collections=dto.target_collections,
-        )
-        job = await self._job_manager.create_job(create_req)
+            # 7. Enqueue for execution
+            await self._job_manager.enqueue_job(job.id)
 
-        # 5. Audit the user action
-        await self._audit_service.log_action(
-            action="BACKUP_REQUESTED",
-            user=dto.user,
-            topic=dto.topic,
-            command=dto.command,
-            result="SUCCESS",
-        )
+            # 8. Increment rate-limit counter
+            await self._rate_limit_repo.increment(
+                telegram_id=dto.user.telegram_id,
+                action="BACKUP",
+                window_seconds=self._backup_rate_window,
+            )
 
-        # 6. Enqueue for execution
-        await self._job_manager.enqueue_job(job.id)
-
-        # 7. Increment rate-limit counter
-        await self._rate_limit_repo.increment(
-            telegram_id=dto.user.telegram_id,
-            action="BACKUP",
-            window_seconds=self._backup_rate_window,
-        )
-
-        return RequestBackupResult(
-            job_id=job.id,
-            status=job.status,
-        )
+            return RequestBackupResult(
+                job_id=job.id,
+                status=job.status,
+            )
+        finally:
+            if self._lock_manager is not None and lock_token is not None:
+                with suppress(Exception):
+                    await self._lock_manager.release(self._GLOBAL_LOCK, lock_token)

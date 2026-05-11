@@ -61,6 +61,7 @@ def get_global_middlewares(
     config = deps.config if deps is not None else None
     permission_service = deps.permission_service if deps is not None else None
     audit_service = deps.audit_service if deps is not None else None
+    redis_connection = deps.redis_connection if deps is not None else None
 
     return [
         LoggingMiddleware(),
@@ -80,6 +81,7 @@ def get_global_middlewares(
         RateLimitMiddleware(
             session_factory=session_factory,
             config=config,
+            redis_connection=redis_connection,
         ),
         AuditMiddleware(
             session_factory=session_factory,

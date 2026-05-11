@@ -18,6 +18,7 @@ from app.application.services.audit_service import AuditService
 from app.application.services.job_manager import JobManager
 from app.application.services.permission_service import PermissionService
 from app.application.services.size_query_service import SizeQueryService
+from app.application.use_cases.add_user import AddUserUseCase
 from app.application.use_cases.cancel_job import CancelJobUseCase
 from app.application.use_cases.query_jobs import QueryJobsUseCase
 from app.application.use_cases.query_size import QuerySizeUseCase
@@ -31,6 +32,7 @@ from app.infrastructure.persistence.sql_audit_repository import SQLAuditReposito
 from app.infrastructure.persistence.sql_job_repository import SQLJobRepository
 from app.infrastructure.persistence.sql_rate_limit_repository import SQLRateLimitRepository
 from app.infrastructure.queue.redis_connection import RedisConnection
+from app.infrastructure.queue.redis_lock_manager import RedisLockManager
 from app.infrastructure.queue.rq_job_queue import RQJobQueue
 
 
@@ -139,12 +141,14 @@ def build_request_backup_use_case(
         permission_service=deps.permission_service,
         audit_service=audit_svc,
     )
+    lock_manager = RedisLockManager(deps.redis_connection)
     return RequestBackupUseCase(
         permission_service=deps.permission_service,
         rate_limit_repo=rate_limit_repo,
         fs_utils=deps.fs_utils,
         job_manager=job_manager,
         audit_service=audit_svc,
+        lock_manager=lock_manager,
         backup_base_path=deps.config.backup_base_path,
         max_backup_rate=deps.config.rate_limit_max_requests,
         backup_rate_window=deps.config.rate_limit_window_seconds,
@@ -160,9 +164,11 @@ def build_query_size_use_case(
     audit_repo = SQLAuditRepository(session)
     audit_svc = AuditService(audit_repo)
     size_query_svc = SizeQueryService(deps.mongo_metadata)
+    lock_manager = RedisLockManager(deps.redis_connection)
     return QuerySizeUseCase(
         size_query_service=size_query_svc,
         audit_service=audit_svc,
+        lock_manager=lock_manager,
     )
 
 
@@ -194,6 +200,23 @@ def build_list_users_use_case(
     user_repo = SQLUserRepository(session)
     return QueryUsersUseCase(
         user_repository=user_repo,
+        audit_service=audit_svc,
+    )
+
+
+def build_add_user_use_case(
+    deps: TelegramDependencies,
+    session: AsyncSession,
+) -> AddUserUseCase:
+    """Assemble an :class:`AddUserUseCase` wired to SQL persistence."""
+    from app.infrastructure.persistence.sql_user_repository import SQLUserRepository
+
+    audit_repo = SQLAuditRepository(session)
+    audit_svc = AuditService(audit_repo)
+    user_repo = SQLUserRepository(session)
+    return AddUserUseCase(
+        user_repository=user_repo,
+        permission_service=deps.permission_service,
         audit_service=audit_svc,
     )
 

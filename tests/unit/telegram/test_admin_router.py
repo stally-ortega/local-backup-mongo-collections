@@ -22,6 +22,7 @@ from app.telegram.keyboards.users_keyboards import (
     UserToggleCallback,
 )
 from app.telegram.routers.admin import (
+    cmd_auth,
     cmd_cancel,
     cmd_jobs,
     cmd_users,
@@ -427,3 +428,75 @@ class TestOnUserRole:
         callback.message.edit_text.assert_awaited_once_with(
             "No tienes permiso para gestionar usuarios."
         )
+
+
+# ---------------------------------------------------------------------------
+# cmd_auth
+# ---------------------------------------------------------------------------
+
+
+class TestCmdAuth:
+    async def test_adds_user_with_valid_args(self) -> None:
+        message = _make_message("/auth 123456789 alice OPERATOR")
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        with patch("app.telegram.routers.admin.build_add_user_use_case") as mock_builder:
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(
+                return_value=MagicMock(
+                    telegram_id=123456789,
+                    username="alice",
+                    role=UserRole.OPERATOR,
+                    is_new=True,
+                )
+            )
+            mock_builder.return_value = mock_use_case
+
+            await cmd_auth(message, deps, user)
+
+        message.answer.assert_awaited_once()
+        text = message.answer.await_args.args[0]
+        assert "123456789" in text
+        assert "alice" in text
+        assert "OPERATOR" in text
+
+    async def test_blocks_non_admin(self) -> None:
+        message = _make_message("/auth 123456789 alice OPERATOR")
+        deps = _make_deps()
+        user = _make_user(UserRole.OPERATOR)
+
+        await cmd_auth(message, deps, user)
+
+        message.answer.assert_awaited_once_with("No tienes permiso para gestionar usuarios.")
+
+    async def test_warns_when_missing_args(self) -> None:
+        message = _make_message("/auth")
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        await cmd_auth(message, deps, user)
+
+        message.answer.assert_awaited_once()
+        text = message.answer.await_args.args[0]
+        assert "Uso:" in text
+
+    async def test_warns_when_invalid_telegram_id(self) -> None:
+        message = _make_message("/auth abc alice OPERATOR")
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        await cmd_auth(message, deps, user)
+
+        message.answer.assert_awaited_once_with("telegram_id debe ser un número entero.")
+
+    async def test_warns_when_invalid_role(self) -> None:
+        message = _make_message("/auth 123456789 alice SUPERADMIN")
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        await cmd_auth(message, deps, user)
+
+        message.answer.assert_awaited_once()
+        text = message.answer.await_args.args[0]
+        assert "no válido" in text

@@ -14,13 +14,18 @@ from app.application.dtos import ExecuteBackupDto, ExecuteBackupResult
 from app.application.ports.ports import (
     IBackupEngine,
     IFsUtils,
+    ILockManager,
     IMongoMetadata,
     INotifier,
     IRetentionManager,
 )
 from app.application.services.audit_service import AuditService
 from app.domain.entities.backup_job import BackupJob
-from app.domain.exceptions.domain_errors import BackupEngineError, JobNotFoundError
+from app.domain.exceptions.domain_errors import (
+    BackupEngineError,
+    JobAlreadyRunningError,
+    JobNotFoundError,
+)
 from app.domain.repositories.repositories import IJobRepository
 from app.domain.value_objects.dtos import CollectionTarget, JobProgress
 from app.domain.value_objects.enums import BackupType, CollectionBackupStatus, JobStatus
@@ -51,6 +56,9 @@ class ExecuteBackupUseCase:
         Root directory where per-job backup outputs are stored.
     """
 
+    _CLUSTER_LOCK_PREFIX: str = "backup:cluster"
+    _LOCK_TTL: int = 3600  # 1 hour
+
     def __init__(
         self,
         *,
@@ -61,6 +69,7 @@ class ExecuteBackupUseCase:
         notifier: INotifier,
         retention_manager: IRetentionManager,
         fs_utils: IFsUtils,
+        lock_manager: ILockManager | None = None,
         backup_base_path: Path,
     ) -> None:
         self._job_repository = job_repository
@@ -70,6 +79,7 @@ class ExecuteBackupUseCase:
         self._notifier = notifier
         self._retention_manager = retention_manager
         self._fs_utils = fs_utils
+        self._lock_manager = lock_manager
         self._backup_base_path = backup_base_path
 
     async def execute(
@@ -103,97 +113,117 @@ class ExecuteBackupUseCase:
                 details={"job_id": dto.job_id},
             )
 
-        job.mark_running()
-
-        output_dir = self._backup_base_path / job.cluster_uri_hash / job.id
-        await self._fs_utils.ensure_dir(output_dir)
-        job.output_path = output_dir
-        await self._job_repository.save(job)
-
-        targets = await self._resolve_targets(job)
-        total = len(targets)
-
-        started_at = datetime.utcnow()
-        await self._audit_service.log_job_event(
-            job_id=job.id,
-            event="BACKUP_STARTED",
-            requester_telegram_id=job.requester_telegram_id,
-            details={"total_collections": total},
-        )
-
-        completed = 0
-        failed = 0
-        bytes_processed = 0
-        collection_results: list[CollectionTarget] = []
-        was_cancelled = False
-
-        for target in targets:
-            if cancel_check is not None and await cancel_check():
-                was_cancelled = True
-                break
-
-            result = await self._backup_single_collection(
-                job=job,
-                target=target,
-                output_dir=output_dir,
+        # Acquire cluster-scoped lock before transitioning to RUNNING.
+        lock_token: str | None = None
+        if self._lock_manager is not None:
+            lock_name = f"{self._CLUSTER_LOCK_PREFIX}:{job.cluster_uri_hash}"
+            lock_token = await self._lock_manager.acquire(
+                lock_name,
+                ttl_seconds=self._LOCK_TTL,
             )
-            collection_results.append(result)
-
-            if result.status == CollectionBackupStatus.SUCCESS:
-                completed += 1
-                bytes_processed += result.size_bytes or 0
-            else:
-                failed += 1
-
-            percent = round(((completed + failed) / total) * 100, 2) if total else 0.0
-            job.update_progress(
-                JobProgress(
-                    total_collections=total,
-                    completed_collections=completed,
-                    failed_collections=failed,
-                    percent_complete=percent,
-                    bytes_processed=bytes_processed,
+            if lock_token is None:
+                raise JobAlreadyRunningError(
+                    message="Another backup is already running for this cluster",
+                    details={"job_id": dto.job_id, "cluster_hash": job.cluster_uri_hash},
                 )
-            )
-            job.target_collections = collection_results
+
+        try:
+            job.mark_running()
+
+            output_dir = self._backup_base_path / job.cluster_uri_hash / job.id
+            await self._fs_utils.ensure_dir(output_dir)
+            job.output_path = output_dir
             await self._job_repository.save(job)
 
-        final_status = self._finalize_job(
-            job=job,
-            was_cancelled=was_cancelled,
-            total=total,
-            failed=failed,
-            collection_results=collection_results,
-        )
-        await self._job_repository.save(job)
+            targets = await self._resolve_targets(job)
+            total = len(targets)
 
-        duration_ms = int((datetime.utcnow() - started_at).total_seconds() * 1000)
-        await self._audit_service.log_job_event(
-            job_id=job.id,
-            event=self._event_name(final_status),
-            requester_telegram_id=job.requester_telegram_id,
-            result=final_status.value,
-            details={
-                "completed_collections": completed,
-                "failed_collections": failed,
-                "total_collections": total,
-                "bytes_processed": bytes_processed,
-                "duration_ms": duration_ms,
-            },
-        )
+            started_at = datetime.utcnow()
+            await self._audit_service.log_job_event(
+                job_id=job.id,
+                event="BACKUP_STARTED",
+                requester_telegram_id=job.requester_telegram_id,
+                details={"total_collections": total},
+            )
 
-        await self._notify(job, final_status, completed, failed, total, bytes_processed)
-        await self._apply_retention(final_status)
+            completed = 0
+            failed = 0
+            bytes_processed = 0
+            collection_results: list[CollectionTarget] = []
+            was_cancelled = False
 
-        return ExecuteBackupResult(
-            job_id=job.id,
-            status=final_status,
-            completed_collections=completed,
-            failed_collections=failed,
-            total_collections=total,
-            bytes_processed=bytes_processed,
-            error_log=job.error_log,
-        )
+            for target in targets:
+                if cancel_check is not None and await cancel_check():
+                    was_cancelled = True
+                    break
+
+                result = await self._backup_single_collection(
+                    job=job,
+                    target=target,
+                    output_dir=output_dir,
+                )
+                collection_results.append(result)
+
+                if result.status == CollectionBackupStatus.SUCCESS:
+                    completed += 1
+                    bytes_processed += result.size_bytes or 0
+                else:
+                    failed += 1
+
+                percent = round(((completed + failed) / total) * 100, 2) if total else 0.0
+                job.update_progress(
+                    JobProgress(
+                        total_collections=total,
+                        completed_collections=completed,
+                        failed_collections=failed,
+                        percent_complete=percent,
+                        bytes_processed=bytes_processed,
+                    )
+                )
+                job.target_collections = collection_results
+                await self._job_repository.save(job)
+
+            final_status = self._finalize_job(
+                job=job,
+                was_cancelled=was_cancelled,
+                total=total,
+                failed=failed,
+                collection_results=collection_results,
+            )
+            await self._job_repository.save(job)
+
+            duration_ms = int((datetime.utcnow() - started_at).total_seconds() * 1000)
+            await self._audit_service.log_job_event(
+                job_id=job.id,
+                event=self._event_name(final_status),
+                requester_telegram_id=job.requester_telegram_id,
+                result=final_status.value,
+                details={
+                    "completed_collections": completed,
+                    "failed_collections": failed,
+                    "total_collections": total,
+                    "bytes_processed": bytes_processed,
+                    "duration_ms": duration_ms,
+                },
+            )
+
+            await self._notify(job, final_status, completed, failed, total, bytes_processed)
+            await self._apply_retention(final_status)
+
+            return ExecuteBackupResult(
+                job_id=job.id,
+                status=final_status,
+                completed_collections=completed,
+                failed_collections=failed,
+                total_collections=total,
+                bytes_processed=bytes_processed,
+                error_log=job.error_log,
+            )
+        finally:
+            if self._lock_manager is not None and lock_token is not None:
+                lock_name = f"{self._CLUSTER_LOCK_PREFIX}:{job.cluster_uri_hash}"
+                with suppress(Exception):
+                    await self._lock_manager.release(lock_name, lock_token)
 
     async def _resolve_targets(self, job: BackupJob) -> list[CollectionTarget]:
         """Return the list of collections to back up for *job*."""
