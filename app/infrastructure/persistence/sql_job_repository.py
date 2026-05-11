@@ -4,9 +4,11 @@ Maps between :class:`~app.domain.entities.backup_job.BackupJob` (domain entity) 
 :class:`~app.infrastructure.persistence.models.job.JobORM` (SQLAlchemy model).
 """
 
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities.backup_job import BackupJob
@@ -96,6 +98,61 @@ class SQLJobRepository(IJobRepository):
         await self._session.refresh(orm)
 
         return self._to_entity(orm)
+
+    async def get_job_stats(self) -> dict[str, Any]:
+        """Return aggregated job statistics computed via SQLAlchemy."""
+        now = datetime.utcnow()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = now - timedelta(days=7)
+        month_start = now - timedelta(days=30)
+
+        today_count = await self._session.scalar(
+            select(func.count()).select_from(JobORM).where(JobORM.created_at >= today_start)
+        )
+        week_count = await self._session.scalar(
+            select(func.count()).select_from(JobORM).where(JobORM.created_at >= week_start)
+        )
+        month_count = await self._session.scalar(
+            select(func.count()).select_from(JobORM).where(JobORM.created_at >= month_start)
+        )
+
+        completed_statuses = [
+            JobStatus.SUCCESS.value,
+            JobStatus.PARTIAL_SUCCESS.value,
+            JobStatus.FAILED.value,
+        ]
+        total_completed = await self._session.scalar(
+            select(func.count()).select_from(JobORM).where(JobORM.status.in_(completed_statuses))
+        )
+        successful = await self._session.scalar(
+            select(func.count())
+            .select_from(JobORM)
+            .where(JobORM.status.in_([JobStatus.SUCCESS.value, JobStatus.PARTIAL_SUCCESS.value]))
+        )
+
+        success_rate = 0.0
+        if total_completed and total_completed > 0:
+            success_rate = round((successful or 0) / total_completed * 100, 2)
+
+        # Average duration via Python to keep SQL portable across SQLite/PostgreSQL.
+        result = await self._session.execute(
+            select(JobORM.started_at, JobORM.completed_at)
+            .where(JobORM.started_at.is_not(None))
+            .where(JobORM.completed_at.is_not(None))
+        )
+        durations: list[float] = []
+        for started, completed in result.all():
+            if started and completed:
+                durations.append((completed - started).total_seconds())
+        avg_duration = round(sum(durations) / len(durations), 2) if durations else None
+
+        return {
+            "jobs_today": today_count or 0,
+            "jobs_week": week_count or 0,
+            "jobs_month": month_count or 0,
+            "success_rate_percent": success_rate,
+            "avg_duration_seconds": avg_duration,
+        }
 
     # ------------------------------------------------------------------
     # Mapping helpers

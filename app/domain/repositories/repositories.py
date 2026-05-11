@@ -5,7 +5,7 @@ injected into application services at runtime.
 """
 
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol
 
 from app.domain.entities.audit_log import AuditLog
 from app.domain.entities.backup_job import BackupJob
@@ -62,6 +62,18 @@ class IJobRepository(Protocol):
 
     async def update_status(self, job_id: str, status: JobStatus) -> BackupJob | None:
         """Update the status of an existing job."""
+        ...
+
+    async def get_job_stats(self) -> dict[str, Any]:
+        """Return aggregated job statistics.
+
+        Expected keys:
+        - ``jobs_today`` (int)
+        - ``jobs_week`` (int)
+        - ``jobs_month`` (int)
+        - ``success_rate_percent`` (float)
+        - ``avg_duration_seconds`` (float | None)
+        """
         ...
 
 

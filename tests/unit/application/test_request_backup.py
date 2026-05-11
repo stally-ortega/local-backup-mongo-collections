@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -107,6 +108,15 @@ class _FakeJobRepo:
         if job:
             job.status = status
         return job
+
+    async def get_job_stats(self) -> dict[str, Any]:
+        return {
+            "jobs_today": 0,
+            "jobs_week": 0,
+            "jobs_month": 0,
+            "success_rate_percent": 0.0,
+            "avg_duration_seconds": None,
+        }
 
 
 class _FakeJobQueue:

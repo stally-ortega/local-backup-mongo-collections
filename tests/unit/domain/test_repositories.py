@@ -1,6 +1,7 @@
 """Tests verifying repository protocol shapes and fake implementations."""
 
 from datetime import datetime
+from typing import Any
 
 import pytest
 
@@ -52,6 +53,15 @@ class _FakeJobRepo:
 
     async def update_status(self, job_id: str, status: JobStatus) -> BackupJob | None:
         return BackupJob.create_full(job_id, 1, "hash")
+
+    async def get_job_stats(self) -> dict[str, Any]:
+        return {
+            "jobs_today": 0,
+            "jobs_week": 0,
+            "jobs_month": 0,
+            "success_rate_percent": 0.0,
+            "avg_duration_seconds": None,
+        }
 
 
 class _FakeAuditRepo:

@@ -24,7 +24,9 @@ from app.telegram.keyboards.users_keyboards import (
 from app.telegram.routers.admin import (
     cmd_auth,
     cmd_cancel,
+    cmd_health,
     cmd_jobs,
+    cmd_stats,
     cmd_users,
     on_job_action,
     on_job_page,
@@ -500,3 +502,88 @@ class TestCmdAuth:
         message.answer.assert_awaited_once()
         text = message.answer.await_args.args[0]
         assert "no válido" in text
+
+
+# ---------------------------------------------------------------------------
+# cmd_health
+# ---------------------------------------------------------------------------
+
+
+class TestCmdHealth:
+    async def test_renders_health_for_admin(self) -> None:
+        message = _make_message("/health")
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        with patch("app.telegram.routers.admin.build_health_check_use_case") as mock_builder:
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(
+                return_value=MagicMock(
+                    mongodb=True,
+                    redis=True,
+                    disk_free_bytes=107_374_182_400,
+                    disk_total_bytes=214_748_364_800,
+                    running_jobs=2,
+                )
+            )
+            mock_builder.return_value = mock_use_case
+
+            await cmd_health(message, deps, user)
+
+        message.answer.assert_awaited_once()
+        text = message.answer.await_args.args[0]
+        assert "Health Check" in text
+        assert "MongoDB" in text
+        assert "Redis" in text
+
+    async def test_blocks_non_admin(self) -> None:
+        message = _make_message("/health")
+        deps = _make_deps()
+        user = _make_user(UserRole.OPERATOR)
+
+        await cmd_health(message, deps, user)
+
+        message.answer.assert_awaited_once_with("No tienes permiso para este comando.")
+
+
+# ---------------------------------------------------------------------------
+# cmd_stats
+# ---------------------------------------------------------------------------
+
+
+class TestCmdStats:
+    async def test_renders_metrics_for_admin(self) -> None:
+        message = _make_message("/stats")
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        with patch("app.telegram.routers.admin.build_query_metrics_use_case") as mock_builder:
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(
+                return_value=MagicMock(
+                    jobs_today=1,
+                    jobs_week=5,
+                    jobs_month=20,
+                    success_rate_percent=95.0,
+                    avg_duration_seconds=120.5,
+                    storage_bytes=10_737_418_240,
+                )
+            )
+            mock_builder.return_value = mock_use_case
+
+            await cmd_stats(message, deps, user)
+
+        message.answer.assert_awaited_once()
+        text = message.answer.await_args.args[0]
+        assert "Métricas" in text
+        assert "Hoy" in text
+        assert "95.0%" in text
+
+    async def test_blocks_non_admin(self) -> None:
+        message = _make_message("/stats")
+        deps = _make_deps()
+        user = _make_user(UserRole.OPERATOR)
+
+        await cmd_stats(message, deps, user)
+
+        message.answer.assert_awaited_once_with("No tienes permiso para este comando.")

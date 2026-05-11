@@ -20,7 +20,9 @@ from app.application.services.permission_service import PermissionService
 from app.application.services.size_query_service import SizeQueryService
 from app.application.use_cases.add_user import AddUserUseCase
 from app.application.use_cases.cancel_job import CancelJobUseCase
+from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.query_jobs import QueryJobsUseCase
+from app.application.use_cases.query_metrics import QueryMetricsUseCase
 from app.application.use_cases.query_size import QuerySizeUseCase
 from app.application.use_cases.query_users import QueryUsersUseCase
 from app.application.use_cases.request_backup import RequestBackupUseCase
@@ -242,4 +244,32 @@ def build_cancel_job_use_case(
     return CancelJobUseCase(
         job_manager=job_manager,
         audit_service=audit_svc,
+    )
+
+
+def build_health_check_use_case(
+    deps: TelegramDependencies,
+    session: AsyncSession,
+) -> HealthCheckUseCase:
+    """Assemble a :class:`HealthCheckUseCase` wired to SQL persistence."""
+    job_repo = SQLJobRepository(session)
+    return HealthCheckUseCase(
+        mongo_connection=deps.mongo_connection,
+        redis_connection=deps.redis_connection,
+        fs_utils=deps.fs_utils,
+        backup_base_path=deps.config.backup_base_path,
+        job_repository=job_repo,
+    )
+
+
+def build_query_metrics_use_case(
+    deps: TelegramDependencies,
+    session: AsyncSession,
+) -> QueryMetricsUseCase:
+    """Assemble a :class:`QueryMetricsUseCase` wired to SQL persistence."""
+    job_repo = SQLJobRepository(session)
+    return QueryMetricsUseCase(
+        job_repository=job_repo,
+        fs_utils=deps.fs_utils,
+        backup_base_path=deps.config.backup_base_path,
     )

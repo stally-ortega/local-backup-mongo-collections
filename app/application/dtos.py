@@ -156,3 +156,40 @@ class AddUserResult(BaseModel):
     username: str
     role: UserRole
     is_new: bool
+
+
+class HealthCheckDto(BaseModel):
+    """Input payload for the health-check use case."""
+
+    user: User
+    topic: str = "ADMIN"
+    command: str | None = None
+
+
+class HealthCheckResult(BaseModel):
+    """Outcome of a system health check."""
+
+    mongodb: bool
+    redis: bool
+    disk_free_bytes: int
+    disk_total_bytes: int
+    running_jobs: int
+
+
+class QueryMetricsDto(BaseModel):
+    """Input payload for the metrics query use case."""
+
+    user: User
+    topic: str = "ADMIN"
+    command: str | None = None
+
+
+class QueryMetricsResult(BaseModel):
+    """Outcome of a job-metrics query."""
+
+    jobs_today: int
+    jobs_week: int
+    jobs_month: int
+    success_rate_percent: float
+    avg_duration_seconds: float | None
+    storage_bytes: int

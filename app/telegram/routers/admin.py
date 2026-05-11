@@ -14,8 +14,12 @@ from app.application.dtos import (
     AddUserResult,
     CancelJobDto,
     CancelJobResult,
+    HealthCheckDto,
+    HealthCheckResult,
     QueryJobsDto,
     QueryJobsResult,
+    QueryMetricsDto,
+    QueryMetricsResult,
     QueryUsersDto,
     QueryUsersResult,
 )
@@ -28,8 +32,10 @@ from app.telegram.dependencies import (
     TelegramDependencies,
     build_add_user_use_case,
     build_cancel_job_use_case,
+    build_health_check_use_case,
     build_list_jobs_use_case,
     build_list_users_use_case,
+    build_query_metrics_use_case,
 )
 from app.telegram.keyboards.jobs_keyboards import (
     JobActionCallback,
@@ -509,3 +515,90 @@ async def on_user_role(
     text = _render_users_list(result)
     keyboard = build_users_keyboard(result.users, page=1, page_size=_USERS_PAGE_SIZE)
     await callback.message.edit_text(text=text, reply_markup=keyboard)
+
+
+# ---------------------------------------------------------------------------
+# /health
+# ---------------------------------------------------------------------------
+
+
+@admin_router.message(Command("health"))
+async def cmd_health(
+    message: Message,
+    telegram_deps: TelegramDependencies,
+    user: User,
+) -> None:
+    """Return a system health summary (ADMIN only)."""
+    if not user.has_role(UserRole.ADMIN):
+        await message.answer("No tienes permiso para este comando.")
+        return
+
+    # Telegram API check is done inline because it is Telegram-specific.
+    telegram_ok = False
+    if message.bot is not None:
+        try:
+            me = await message.bot.get_me()
+            telegram_ok = me is not None
+        except Exception as exc:
+            _logger.warning("telegram_health_check_failed", error=str(exc))
+
+    dto = HealthCheckDto(user=user, topic="ADMIN", command="HEALTH")
+    async with telegram_deps.session_factory() as session:
+        use_case = build_health_check_use_case(telegram_deps, session)
+        result: HealthCheckResult = await use_case.execute(dto)
+        await session.commit()
+
+    def _status(ok: bool) -> str:
+        return "✅ OK" if ok else "❌ FAIL"
+
+    free_gb = result.disk_free_bytes / (1024 * 1024 * 1024)
+    total_gb = result.disk_total_bytes / (1024 * 1024 * 1024)
+
+    text = (
+        f"<b>Health Check</b>\n\n"
+        f"Telegram API: {_status(telegram_ok)}\n"
+        f"MongoDB: {_status(result.mongodb)}\n"
+        f"Redis: {_status(result.redis)}\n"
+        f"Disk: {free_gb:.2f} GB libre / {total_gb:.2f} GB total\n"
+        f"Jobs running: {result.running_jobs}"
+    )
+    await message.answer(text)
+
+
+# ---------------------------------------------------------------------------
+# /stats
+# ---------------------------------------------------------------------------
+
+
+@admin_router.message(Command("stats"))
+async def cmd_stats(
+    message: Message,
+    telegram_deps: TelegramDependencies,
+    user: User,
+) -> None:
+    """Return aggregated job metrics (ADMIN only)."""
+    if not user.has_role(UserRole.ADMIN):
+        await message.answer("No tienes permiso para este comando.")
+        return
+
+    dto = QueryMetricsDto(user=user, topic="ADMIN", command="STATS")
+    async with telegram_deps.session_factory() as session:
+        use_case = build_query_metrics_use_case(telegram_deps, session)
+        result: QueryMetricsResult = await use_case.execute(dto)
+        await session.commit()
+
+    storage_gb = result.storage_bytes / (1024 * 1024 * 1024)
+    avg_str = (
+        f"{result.avg_duration_seconds:.1f}s" if result.avg_duration_seconds is not None else "N/A"
+    )
+
+    text = (
+        f"<b>Métricas de Jobs</b>\n\n"
+        f"Hoy: {result.jobs_today}\n"
+        f"Esta semana: {result.jobs_week}\n"
+        f"Este mes: {result.jobs_month}\n"
+        f"Tasa de éxito: {result.success_rate_percent:.1f}%\n"
+        f"Duración promedio: {avg_str}\n"
+        f"Almacenamiento: {storage_gb:.2f} GB"
+    )
+    await message.answer(text)
