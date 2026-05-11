@@ -17,6 +17,8 @@ from app.application.ports.ports import IFsUtils, IJobQueue, IMongoMetadata
 from app.application.services.audit_service import AuditService
 from app.application.services.job_manager import JobManager
 from app.application.services.permission_service import PermissionService
+from app.application.services.size_query_service import SizeQueryService
+from app.application.use_cases.query_size import QuerySizeUseCase
 from app.application.use_cases.request_backup import RequestBackupUseCase
 from app.config import AppConfig
 from app.infrastructure.filesystem.aio_fs_utils import AioFsUtils
@@ -144,4 +146,18 @@ def build_request_backup_use_case(
         max_backup_rate=deps.config.rate_limit_max_requests,
         backup_rate_window=deps.config.rate_limit_window_seconds,
         min_free_disk_bytes=1_073_741_824,
+    )
+
+
+def build_query_size_use_case(
+    deps: TelegramDependencies,
+    session: AsyncSession,
+) -> QuerySizeUseCase:
+    """Assemble a :class:`QuerySizeUseCase` wired to SQL persistence."""
+    audit_repo = SQLAuditRepository(session)
+    audit_svc = AuditService(audit_repo)
+    size_query_svc = SizeQueryService(deps.mongo_metadata)
+    return QuerySizeUseCase(
+        size_query_service=size_query_svc,
+        audit_service=audit_svc,
     )
