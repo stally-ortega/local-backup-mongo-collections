@@ -6,6 +6,7 @@ full middleware + router stack.
 """
 
 import logging
+from typing import Any, cast
 
 import redis.asyncio as aioredis
 from aiogram import BaseMiddleware, Dispatcher, Router
@@ -39,6 +40,8 @@ class BotBuilder:
     ) -> None:
         self._config = config
         self._middleware_deps = middleware_deps
+        self._telegram_deps: Any = None
+        self._timeout_monitor: Any = None
 
     def create_dispatcher(
         self,
@@ -85,7 +88,7 @@ class BotBuilder:
         return dp
 
     async def start(self) -> tuple[AiogramBot, Dispatcher]:
-        """Create and start the bot and dispatcher.
+        """Create and start the bot, dispatcher, and FSM timeout monitor.
 
         Returns
         -------
@@ -94,12 +97,51 @@ class BotBuilder:
         bot = AiogramBot.from_config(self._config)
         bot.start()
 
+        # Wire TelegramDependencies into the backup router before the
+        # dispatcher includes it.
+        if self._middleware_deps is not None:
+            from app.telegram.dependencies import (
+                DependencyInjectionMiddleware,
+                build_telegram_dependencies,
+            )
+            from app.telegram.fsm_timeout import FSMTimeoutMonitor
+            from app.telegram.routers.backup import backup_router
+
+            self._telegram_deps = build_telegram_dependencies(
+                config=self._config,
+                session_factory=self._middleware_deps.session_factory,
+            )
+            di_mw = DependencyInjectionMiddleware(self._telegram_deps)
+            backup_router.message.middleware(di_mw)
+            backup_router.callback_query.middleware(di_mw)
+            logger.debug("Wired DependencyInjectionMiddleware to backup_router")
+
         dp = self.create_dispatcher()
+
+        if self._middleware_deps is not None:
+            storage = cast("RedisStorage", dp.storage)
+            self._timeout_monitor = FSMTimeoutMonitor(
+                bot=bot.bot,
+                storage=storage,
+                config=self._config,
+            )
+            self._timeout_monitor.start()
+            logger.debug("FSMTimeoutMonitor started")
 
         logger.info("Bot and dispatcher ready")
         return bot, dp
 
     async def shutdown(self, bot: AiogramBot, dp: Dispatcher) -> None:
-        """Gracefully shut down the bot and dispatcher."""
+        """Gracefully shut down the bot, dispatcher, and FSM monitor."""
+        if self._timeout_monitor is not None:
+            await self._timeout_monitor.stop()
+            logger.debug("FSMTimeoutMonitor stopped")
+
+        if self._telegram_deps is not None:
+            self._telegram_deps.mongo_connection.close()
+            self._telegram_deps.redis_connection.close()
+            await self._telegram_deps.aioredis_client.close()
+            logger.debug("TelegramDependencies connections closed")
+
         await bot.shutdown()
         logger.info("Bot and dispatcher shut down")

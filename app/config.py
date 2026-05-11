@@ -1,5 +1,6 @@
 """Application configuration loaded from environment variables and .env files."""
 
+import hashlib
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -160,3 +161,12 @@ class AppConfig(BaseSettings):
         if upper not in valid:
             raise ValueError(f"log_level must be one of {valid}, got '{value}'")
         return upper
+
+    @property
+    def cluster_uri_hash(self) -> str:
+        """Return a stable SHA-256 hash of the MongoDB URI.
+
+        Used as an opaque cluster identifier so that secrets are not
+        persisted in job queues, audit logs, or Telegram messages.
+        """
+        return hashlib.sha256(self.mongodb_uri.encode("utf-8")).hexdigest()
