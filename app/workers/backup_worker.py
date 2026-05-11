@@ -15,6 +15,8 @@ import logging
 import signal
 from typing import TYPE_CHECKING, Any
 
+from rq import Worker
+
 from app.application.dtos import ExecuteBackupDto
 from app.application.services.audit_service import AuditService
 from app.application.services.retention_manager import RetentionManager
@@ -150,3 +152,23 @@ def _backup_worker_fn(
         # process starts with a clean slate.
         global _shutdown_requested
         _shutdown_requested = False
+
+
+if __name__ == "__main__":
+    config = AppConfig()  # type: ignore[call-arg]
+    from app.infrastructure.logging.structured_logger import configure_logging
+    from pathlib import Path
+
+    configure_logging(log_dir=Path("logs"), level=config.log_level)
+
+    redis_conn = RedisConnection.from_config(config)
+    redis_conn.connect()
+
+    logger.info("Starting RQ worker on queue 'default'...")
+    worker = Worker(
+        queues=["default"],
+        connection=redis_conn.client,
+        name="mongo_ops_backup_worker",
+    )
+    worker.work()
+
