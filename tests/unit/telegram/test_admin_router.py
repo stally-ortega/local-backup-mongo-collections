@@ -1,0 +1,429 @@
+"""Unit tests for the admin router.
+
+Each handler is exercised in isolation with mocked aiogram events and
+synthetic :class:`TelegramDependencies` so that no real database or Telegram
+network call is required.
+"""
+
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from aiogram.types import CallbackQuery, Chat, Message
+from aiogram.types import User as TelegramUser
+
+from app.domain.entities.backup_job import BackupJob
+from app.domain.entities.user import User
+from app.domain.value_objects.enums import BackupType, JobStatus, UserRole
+from app.telegram.dependencies import TelegramDependencies
+from app.telegram.keyboards.jobs_keyboards import JobActionCallback, JobPageCallback
+from app.telegram.keyboards.users_keyboards import (
+    UserPageCallback,
+    UserRoleCallback,
+    UserToggleCallback,
+)
+from app.telegram.routers.admin import (
+    cmd_cancel,
+    cmd_jobs,
+    cmd_users,
+    on_job_action,
+    on_job_page,
+    on_user_page,
+    on_user_role,
+    on_user_toggle,
+)
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_user(role: UserRole = UserRole.ADMIN) -> User:
+    return User(telegram_id=42, username="alice", role=role)
+
+
+def _make_deps() -> TelegramDependencies:
+    config = MagicMock()
+    config.cluster_uri_hash = "abc123def"
+
+    session = AsyncMock()
+    session.__aenter__ = AsyncMock(return_value=session)
+    session.__aexit__ = AsyncMock(return_value=False)
+    session_factory = MagicMock(return_value=session)
+
+    mongo_meta = AsyncMock()
+    redis_conn = MagicMock()
+    aioredis_client = AsyncMock()
+    fs_utils = AsyncMock()
+    perms = MagicMock()
+
+    return TelegramDependencies(
+        config=config,
+        session_factory=session_factory,
+        mongo_metadata=mongo_meta,
+        mongo_connection=MagicMock(),
+        redis_connection=redis_conn,
+        aioredis_client=aioredis_client,
+        fs_utils=fs_utils,
+        permission_service=perms,
+    )
+
+
+def _make_message(text: str = "/jobs") -> MagicMock:
+    msg = MagicMock(spec=Message)
+    msg.answer = AsyncMock()
+    msg.message_thread_id = 1
+    msg.chat = MagicMock(spec=Chat)
+    msg.chat.id = -100
+    msg.from_user = MagicMock(spec=TelegramUser)
+    msg.from_user.id = 42
+    msg.text = text
+    return msg
+
+
+def _make_callback() -> MagicMock:
+    cb = MagicMock(spec=CallbackQuery)
+    cb.message = MagicMock(spec=Message)
+    cb.message.edit_text = AsyncMock()
+    cb.message.answer = AsyncMock()
+    cb.message.message_thread_id = 1
+    cb.message.chat = MagicMock(spec=Chat)
+    cb.message.chat.id = -100
+    cb.answer = AsyncMock()
+    cb.from_user = MagicMock(spec=TelegramUser)
+    cb.from_user.id = 42
+    return cb
+
+
+def _make_job(job_id: str = "job-123", status: JobStatus = JobStatus.QUEUED) -> BackupJob:
+    return BackupJob(
+        id=job_id,
+        requester_telegram_id=42,
+        backup_type=BackupType.FULL,
+        status=status,
+        cluster_uri_hash="abc123def",
+        created_at=datetime(2026, 5, 10, 12, 0, 0),
+    )
+
+
+# ---------------------------------------------------------------------------
+# cmd_jobs
+# ---------------------------------------------------------------------------
+
+
+class TestCmdJobs:
+    async def test_renders_job_list(self) -> None:
+        message = _make_message("/jobs")
+        deps = _make_deps()
+        user = _make_user()
+
+        with patch("app.telegram.routers.admin.build_list_jobs_use_case") as mock_builder:
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(
+                return_value=MagicMock(jobs=[_make_job()], page=1, page_size=10)
+            )
+            mock_builder.return_value = mock_use_case
+
+            await cmd_jobs(message, deps, user)
+
+        message.answer.assert_awaited_once()
+        text = message.answer.await_args.args[0]
+        assert "Jobs" in text
+
+
+# ---------------------------------------------------------------------------
+# cmd_users
+# ---------------------------------------------------------------------------
+
+
+class TestCmdUsers:
+    async def test_renders_user_list_for_admin(self) -> None:
+        message = _make_message("/users")
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        with patch("app.telegram.routers.admin.build_list_users_use_case") as mock_builder:
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(
+                return_value=MagicMock(
+                    users=[_make_user()],
+                    page=1,
+                    page_size=10,
+                    total=1,
+                )
+            )
+            mock_builder.return_value = mock_use_case
+
+            await cmd_users(message, deps, user)
+
+        message.answer.assert_awaited_once()
+        text = message.answer.await_args.args[0]
+        assert "Usuarios" in text
+
+    async def test_blocks_non_admin(self) -> None:
+        message = _make_message("/users")
+        deps = _make_deps()
+        user = _make_user(UserRole.OPERATOR)
+
+        await cmd_users(message, deps, user)
+
+        message.answer.assert_awaited_once_with("No tienes permiso para gestionar usuarios.")
+
+
+# ---------------------------------------------------------------------------
+# cmd_cancel
+# ---------------------------------------------------------------------------
+
+
+class TestCmdCancel:
+    async def test_cancels_job_with_id(self) -> None:
+        message = _make_message("/cancel job-123")
+        deps = _make_deps()
+        user = _make_user()
+
+        with patch("app.telegram.routers.admin.build_cancel_job_use_case") as mock_builder:
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(
+                return_value=MagicMock(
+                    job_id="job-123",
+                    status=JobStatus.CANCELLED,
+                )
+            )
+            mock_builder.return_value = mock_use_case
+
+            await cmd_cancel(message, deps, user)
+
+        message.answer.assert_awaited_once()
+        text = message.answer.await_args.args[0]
+        assert "job-123" in text
+        assert "CANCELLED" in text
+
+    async def test_warns_when_no_argument(self) -> None:
+        message = _make_message("/cancel")
+        deps = _make_deps()
+        user = _make_user()
+
+        await cmd_cancel(message, deps, user)
+
+        message.answer.assert_awaited_once_with("Uso: /cancel <job_id>")
+
+
+# ---------------------------------------------------------------------------
+# on_job_page
+# ---------------------------------------------------------------------------
+
+
+class TestOnJobPage:
+    async def test_navigates_page(self) -> None:
+        callback = _make_callback()
+        callback_data = JobPageCallback(page=2)
+        deps = _make_deps()
+        user = _make_user()
+
+        with patch("app.telegram.routers.admin.build_list_jobs_use_case") as mock_builder:
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(
+                return_value=MagicMock(jobs=[_make_job()], page=2, page_size=10)
+            )
+            mock_builder.return_value = mock_use_case
+
+            await on_job_page(callback, callback_data, deps, user)
+
+        callback.answer.assert_awaited_once()
+        callback.message.edit_text.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# on_job_action
+# ---------------------------------------------------------------------------
+
+
+class TestOnJobAction:
+    async def test_shows_job_detail(self) -> None:
+        callback = _make_callback()
+        callback_data = JobActionCallback(job_id="job-123", action="detail")
+        deps = _make_deps()
+        user = _make_user()
+
+        with patch(
+            "app.infrastructure.persistence.sql_job_repository.SQLJobRepository"
+        ) as MockRepo:
+            mock_repo = AsyncMock()
+            mock_repo.get_by_id = AsyncMock(return_value=_make_job("job-123"))
+            MockRepo.return_value = mock_repo
+
+            await on_job_action(callback, callback_data, deps, user)
+
+        callback.answer.assert_awaited_once()
+        callback.message.edit_text.assert_awaited_once()
+        text = callback.message.edit_text.await_args.args[0]
+        assert "job-123" in text
+
+    async def test_cancels_job(self) -> None:
+        callback = _make_callback()
+        callback_data = JobActionCallback(job_id="job-123", action="cancel")
+        deps = _make_deps()
+        user = _make_user()
+
+        with patch("app.telegram.routers.admin.build_cancel_job_use_case") as mock_builder:
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(
+                return_value=MagicMock(
+                    job_id="job-123",
+                    status=JobStatus.CANCELLED,
+                )
+            )
+            mock_builder.return_value = mock_use_case
+
+            await on_job_action(callback, callback_data, deps, user)
+
+        callback.answer.assert_awaited_once()
+        callback.message.edit_text.assert_awaited_once()
+        text = callback.message.edit_text.await_args.args[0]
+        assert "job-123" in text
+
+
+# ---------------------------------------------------------------------------
+# on_user_page
+# ---------------------------------------------------------------------------
+
+
+class TestOnUserPage:
+    async def test_navigates_page_for_admin(self) -> None:
+        callback = _make_callback()
+        callback_data = UserPageCallback(page=2)
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        with patch("app.telegram.routers.admin.build_list_users_use_case") as mock_builder:
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(
+                return_value=MagicMock(
+                    users=[_make_user()],
+                    page=2,
+                    page_size=10,
+                    total=1,
+                )
+            )
+            mock_builder.return_value = mock_use_case
+
+            await on_user_page(callback, callback_data, deps, user)
+
+        callback.answer.assert_awaited_once()
+        callback.message.edit_text.assert_awaited_once()
+
+    async def test_blocks_non_admin(self) -> None:
+        callback = _make_callback()
+        callback_data = UserPageCallback(page=2)
+        deps = _make_deps()
+        user = _make_user(UserRole.OPERATOR)
+
+        await on_user_page(callback, callback_data, deps, user)
+
+        callback.answer.assert_awaited_once()
+        callback.message.edit_text.assert_awaited_once_with(
+            "No tienes permiso para gestionar usuarios."
+        )
+
+
+# ---------------------------------------------------------------------------
+# on_user_toggle
+# ---------------------------------------------------------------------------
+
+
+class TestOnUserToggle:
+    async def test_toggles_user_active(self) -> None:
+        callback = _make_callback()
+        callback_data = UserToggleCallback(telegram_id=99)
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        with (
+            patch(
+                "app.infrastructure.persistence.sql_user_repository.SQLUserRepository"
+            ) as MockRepo,
+            patch("app.telegram.routers.admin.build_list_users_use_case") as mock_builder,
+        ):
+            mock_repo = AsyncMock()
+            mock_repo.toggle_active = AsyncMock(return_value=_make_user(UserRole.ADMIN))
+            MockRepo.return_value = mock_repo
+
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(
+                return_value=MagicMock(
+                    users=[_make_user()],
+                    page=1,
+                    page_size=10,
+                    total=1,
+                )
+            )
+            mock_builder.return_value = mock_use_case
+
+            await on_user_toggle(callback, callback_data, deps, user)
+
+        callback.answer.assert_awaited_once()
+        mock_repo.toggle_active.assert_awaited_once_with(99)
+
+    async def test_blocks_non_admin(self) -> None:
+        callback = _make_callback()
+        callback_data = UserToggleCallback(telegram_id=99)
+        deps = _make_deps()
+        user = _make_user(UserRole.OPERATOR)
+
+        await on_user_toggle(callback, callback_data, deps, user)
+
+        callback.answer.assert_awaited_once()
+        callback.message.edit_text.assert_awaited_once_with(
+            "No tienes permiso para gestionar usuarios."
+        )
+
+
+# ---------------------------------------------------------------------------
+# on_user_role
+# ---------------------------------------------------------------------------
+
+
+class TestOnUserRole:
+    async def test_cycles_role(self) -> None:
+        callback = _make_callback()
+        callback_data = UserRoleCallback(telegram_id=99, current_role="ADMIN")
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        with (
+            patch(
+                "app.infrastructure.persistence.sql_user_repository.SQLUserRepository"
+            ) as MockRepo,
+            patch("app.telegram.routers.admin.build_list_users_use_case") as mock_builder,
+        ):
+            mock_repo = AsyncMock()
+            mock_repo.update_role = AsyncMock(return_value=_make_user(UserRole.DBA))
+            MockRepo.return_value = mock_repo
+
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(
+                return_value=MagicMock(
+                    users=[_make_user(UserRole.DBA)],
+                    page=1,
+                    page_size=10,
+                    total=1,
+                )
+            )
+            mock_builder.return_value = mock_use_case
+
+            await on_user_role(callback, callback_data, deps, user)
+
+        callback.answer.assert_awaited_once()
+        mock_repo.update_role.assert_awaited_once_with(99, UserRole.DBA)
+
+    async def test_blocks_non_admin(self) -> None:
+        callback = _make_callback()
+        callback_data = UserRoleCallback(telegram_id=99, current_role="ADMIN")
+        deps = _make_deps()
+        user = _make_user(UserRole.OPERATOR)
+
+        await on_user_role(callback, callback_data, deps, user)
+
+        callback.answer.assert_awaited_once()
+        callback.message.edit_text.assert_awaited_once_with(
+            "No tienes permiso para gestionar usuarios."
+        )

@@ -6,6 +6,7 @@ without exposing domain internals directly.
 
 from pydantic import BaseModel, Field
 
+from app.domain.entities.backup_job import BackupJob
 from app.domain.entities.size_report import CollectionSize, DatabaseSize
 from app.domain.entities.user import User
 from app.domain.value_objects.dtos import CollectionTarget
@@ -97,3 +98,41 @@ class CancelJobResult(BaseModel):
     job_id: str = Field(..., min_length=1)
     status: JobStatus
     cancelled_by: int
+
+
+class QueryJobsDto(BaseModel):
+    """Input payload for the list-jobs use case."""
+
+    user: User
+    filter_status: JobStatus = JobStatus.QUEUED
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=10, ge=1, le=50)
+    topic: str = "ADMIN"
+    command: str | None = None
+
+
+class QueryJobsResult(BaseModel):
+    """Outcome of a job-list query."""
+
+    jobs: list[BackupJob]
+    page: int
+    page_size: int
+
+
+class QueryUsersDto(BaseModel):
+    """Input payload for the list-users use case."""
+
+    user: User
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=10, ge=1, le=50)
+    topic: str = "ADMIN"
+    command: str | None = None
+
+
+class QueryUsersResult(BaseModel):
+    """Outcome of a user-list query."""
+
+    users: list[User]
+    page: int
+    page_size: int
+    total: int

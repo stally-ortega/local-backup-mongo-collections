@@ -18,7 +18,10 @@ from app.application.services.audit_service import AuditService
 from app.application.services.job_manager import JobManager
 from app.application.services.permission_service import PermissionService
 from app.application.services.size_query_service import SizeQueryService
+from app.application.use_cases.cancel_job import CancelJobUseCase
+from app.application.use_cases.query_jobs import QueryJobsUseCase
 from app.application.use_cases.query_size import QuerySizeUseCase
+from app.application.use_cases.query_users import QueryUsersUseCase
 from app.application.use_cases.request_backup import RequestBackupUseCase
 from app.config import AppConfig
 from app.infrastructure.filesystem.aio_fs_utils import AioFsUtils
@@ -159,5 +162,61 @@ def build_query_size_use_case(
     size_query_svc = SizeQueryService(deps.mongo_metadata)
     return QuerySizeUseCase(
         size_query_service=size_query_svc,
+        audit_service=audit_svc,
+    )
+
+
+def build_list_jobs_use_case(
+    deps: TelegramDependencies,
+    session: AsyncSession,
+) -> QueryJobsUseCase:
+    """Assemble a :class:`QueryJobsUseCase` wired to SQL persistence."""
+    from app.infrastructure.persistence.sql_job_repository import SQLJobRepository
+
+    audit_repo = SQLAuditRepository(session)
+    audit_svc = AuditService(audit_repo)
+    job_repo = SQLJobRepository(session)
+    return QueryJobsUseCase(
+        job_repository=job_repo,
+        audit_service=audit_svc,
+    )
+
+
+def build_list_users_use_case(
+    deps: TelegramDependencies,
+    session: AsyncSession,
+) -> QueryUsersUseCase:
+    """Assemble a :class:`QueryUsersUseCase` wired to SQL persistence."""
+    from app.infrastructure.persistence.sql_user_repository import SQLUserRepository
+
+    audit_repo = SQLAuditRepository(session)
+    audit_svc = AuditService(audit_repo)
+    user_repo = SQLUserRepository(session)
+    return QueryUsersUseCase(
+        user_repository=user_repo,
+        audit_service=audit_svc,
+    )
+
+
+def build_cancel_job_use_case(
+    deps: TelegramDependencies,
+    session: AsyncSession,
+) -> CancelJobUseCase:
+    """Assemble a :class:`CancelJobUseCase` wired to SQL persistence."""
+    from app.application.services.job_manager import JobManager
+    from app.infrastructure.persistence.sql_job_repository import SQLJobRepository
+
+    audit_repo = SQLAuditRepository(session)
+    audit_svc = AuditService(audit_repo)
+    job_repo = SQLJobRepository(session)
+    job_queue: IJobQueue = RQJobQueue(deps.redis_connection)
+    job_manager = JobManager(
+        job_repository=job_repo,
+        job_queue=job_queue,
+        permission_service=deps.permission_service,
+        audit_service=audit_svc,
+    )
+    return CancelJobUseCase(
+        job_manager=job_manager,
         audit_service=audit_svc,
     )

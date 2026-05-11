@@ -29,6 +29,9 @@ class _FakeUserRepo:
     async def update_role(self, telegram_id: int, role: UserRole) -> User | None:
         return User(telegram_id=telegram_id, role=role)
 
+    async def toggle_active(self, telegram_id: int) -> User | None:
+        return User(telegram_id=telegram_id, role=UserRole.ADMIN)
+
 
 class _FakeJobRepo:
     async def get_by_id(self, job_id: str) -> BackupJob | None:

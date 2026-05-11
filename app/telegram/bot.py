@@ -105,6 +105,7 @@ class BotBuilder:
                 build_telegram_dependencies,
             )
             from app.telegram.fsm_timeout import FSMTimeoutMonitor
+            from app.telegram.routers.admin import admin_router
             from app.telegram.routers.backup import backup_router
             from app.telegram.routers.size import size_router
 
@@ -117,7 +118,11 @@ class BotBuilder:
             backup_router.callback_query.middleware(di_mw)
             size_router.message.middleware(di_mw)
             size_router.callback_query.middleware(di_mw)
-            logger.debug("Wired DependencyInjectionMiddleware to backup_router and size_router")
+            admin_router.message.middleware(di_mw)
+            admin_router.callback_query.middleware(di_mw)
+            logger.debug(
+                "Wired DependencyInjectionMiddleware to backup_router, size_router and admin_router"
+            )
 
         dp = self.create_dispatcher()
 

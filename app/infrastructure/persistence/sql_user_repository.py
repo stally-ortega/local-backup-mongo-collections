@@ -77,6 +77,20 @@ class SQLUserRepository(IUserRepository):
 
         return self._to_entity(orm)
 
+    async def toggle_active(self, telegram_id: int) -> User | None:
+        """Flip the ``is_active`` flag of the user identified by *telegram_id*."""
+        result = await self._session.execute(
+            select(UserORM).where(UserORM.telegram_id == telegram_id)
+        )
+        orm = result.scalar_one_or_none()
+        if orm is None:
+            return None
+
+        orm.is_active = not orm.is_active
+        await self._session.flush()
+
+        return self._to_entity(orm)
+
     # ------------------------------------------------------------------
     # Mapping helpers
     # ------------------------------------------------------------------

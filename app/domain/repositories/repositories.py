@@ -32,6 +32,10 @@ class IUserRepository(Protocol):
         """Change the role of an existing user."""
         ...
 
+    async def toggle_active(self, telegram_id: int) -> User | None:
+        """Flip the ``is_active`` flag of the user identified by *telegram_id*."""
+        ...
+
 
 class IJobRepository(Protocol):
     """Persistence port for :class:`~app.domain.entities.backup_job.BackupJob`."""
