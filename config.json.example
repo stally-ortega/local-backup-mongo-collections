@@ -1,35 +1,38 @@
-{
-    "telegram": {
-        "bot_token": "YOUR_BOT_TOKEN_HERE",
-        "chat_id": "-100123456789",
-        "topics": {
-            "backup_requests": 1,
-            "size_ask": 2,
-            "execution_errors": 3,
-            "admin": 4
-        }
-    },
-    "mongodb": {
-        "uri": "mongodb+srv://user:password@cluster.mongodb.net/?retryWrites=true&w=majority"
-    },
-    "redis": {
-        "url": "redis://localhost:6379/0"
-    },
-    "database": {
-        "url": "sqlite+aiosqlite:///./mongo_ops.db"
-    },
-    "backup": {
-        "base_path": "./backups",
-        "retention": {
-            "full_weeks": 4,
-            "custom_weeks": 2,
-            "max_gb": 50
-        }
-    },
-    "logging": {
-        "level": "INFO"
-    },
-    "concurrency": {
-        "max_concurrent_backups": 3
+﻿{
+  "_comment": "EXAMPLE FILE — NEVER COMMIT REAL SECRETS. The application prefers .env via pydantic-settings; this file is documented for legacy/reference only.",
+  "telegram": {
+    "bot_token": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+    "chat_id": "-1001234567890",
+    "topics": {
+      "backup_requests": 1,
+      "size_ask": 2,
+      "execution_errors": 3,
+      "admin": 4
     }
+  },
+  "mongodb": {
+    "uri": "mongodb+srv://user:password@cluster.mongodb.net/?retryWrites=true&w=majority"
+  },
+  "redis": {
+    "url": "redis://localhost:6379/0"
+  },
+  "database": {
+    "url": "sqlite+aiosqlite:///./mongo_ops.db"
+  },
+  "backup": {
+    "base_path": "./backups",
+    "retention_full_weeks": 4,
+    "retention_custom_weeks": 2,
+    "retention_max_gb": 50
+  },
+  "logging": {
+    "level": "INFO"
+  },
+  "rate_limit": {
+    "max_requests": 10,
+    "window_seconds": 60
+  },
+  "concurrency": {
+    "max_concurrent_backups": 3
+  }
 }

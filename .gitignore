@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -24,6 +24,8 @@ wheels/
 # Virtual environments
 .env
 .envrc
+.env.local
+.env.*.local
 .venv/
 venv/
 ENV/
@@ -45,9 +47,11 @@ logs/
 # Backups (local storage)
 backups/
 
-# Config with secrets
+# Config with secrets (JSON legacy + env local overrides)
 config.json
+config.local.json
 .env.local
+.env.*.local
 
 # Testing
 .pytest_cache/

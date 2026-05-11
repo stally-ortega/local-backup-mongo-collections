@@ -14,6 +14,12 @@ class AppConfig(BaseSettings):
     Loads from environment variables prefixed with ``MONGO_OPS_``
     and from a ``.env`` file when present. All fields are strictly
     typed and validated at import time.
+
+    .. security::
+        ``mongodb_uri`` is loaded into memory from the environment and is
+        **never persisted** to the local database, audit logs, or Telegram
+        messages.  All long-lived references use :attr:`cluster_uri_hash`,
+        a stable SHA-256 digest that acts as an opaque cluster identifier.
     """
 
     model_config = SettingsConfigDict(
