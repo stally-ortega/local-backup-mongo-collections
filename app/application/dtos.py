@@ -109,6 +109,21 @@ class CancelJobResult(BaseModel):
     cancelled_by: int
 
 
+class GetJobDetailDto(BaseModel):
+    """Input payload for the job-detail use case."""
+
+    user: User
+    job_id: str = Field(..., min_length=1)
+    topic: str = "ADMIN"
+    command: str | None = None
+
+
+class GetJobDetailResult(BaseModel):
+    """Outcome of a job-detail query."""
+
+    job: BackupJob
+
+
 class QueryJobsDto(BaseModel):
     """Input payload for the list-jobs use case."""
 

@@ -147,6 +147,15 @@ class TestCmdJobs:
         text = message.answer.await_args.args[0]
         assert "Jobs" in text
 
+    async def test_blocks_non_admin(self) -> None:
+        message = _make_message("/jobs")
+        deps = _make_deps()
+        user = _make_user(UserRole.OPERATOR)
+
+        await cmd_jobs(message, deps, user)
+
+        message.answer.assert_awaited_once_with("No tienes permiso para gestionar jobs.")
+
 
 # ---------------------------------------------------------------------------
 # cmd_users
@@ -249,6 +258,19 @@ class TestOnJobPage:
         callback.answer.assert_awaited_once()
         callback.message.edit_text.assert_awaited_once()
 
+    async def test_blocks_non_admin(self) -> None:
+        callback = _make_callback()
+        callback_data = JobPageCallback(page=2)
+        deps = _make_deps()
+        user = _make_user(UserRole.OPERATOR)
+
+        await on_job_page(callback, callback_data, deps, user)
+
+        callback.answer.assert_awaited_once()
+        callback.message.edit_text.assert_awaited_once_with(
+            "No tienes permiso para gestionar jobs."
+        )
+
 
 # ---------------------------------------------------------------------------
 # on_job_action
@@ -262,12 +284,10 @@ class TestOnJobAction:
         deps = _make_deps()
         user = _make_user()
 
-        with patch(
-            "app.infrastructure.persistence.sql_job_repository.SQLJobRepository"
-        ) as MockRepo:
-            mock_repo = AsyncMock()
-            mock_repo.get_by_id = AsyncMock(return_value=_make_job("job-123"))
-            MockRepo.return_value = mock_repo
+        with patch("app.telegram.routers.admin.build_get_job_detail_use_case") as mock_builder:
+            mock_use_case = AsyncMock()
+            mock_use_case.execute = AsyncMock(return_value=MagicMock(job=_make_job("job-123")))
+            mock_builder.return_value = mock_use_case
 
             await on_job_action(callback, callback_data, deps, user)
 

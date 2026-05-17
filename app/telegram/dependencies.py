@@ -20,6 +20,7 @@ from app.application.services.permission_service import PermissionService
 from app.application.services.size_query_service import SizeQueryService
 from app.application.use_cases.add_user import AddUserUseCase
 from app.application.use_cases.cancel_job import CancelJobUseCase
+from app.application.use_cases.get_job_detail import GetJobDetailUseCase
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.query_jobs import QueryJobsUseCase
 from app.application.use_cases.query_metrics import QueryMetricsUseCase
@@ -272,4 +273,18 @@ def build_query_metrics_use_case(
         job_repository=job_repo,
         fs_utils=deps.fs_utils,
         backup_base_path=deps.config.backup_base_path,
+    )
+
+
+def build_get_job_detail_use_case(
+    deps: TelegramDependencies,
+    session: AsyncSession,
+) -> GetJobDetailUseCase:
+    """Assemble a :class:`GetJobDetailUseCase` wired to SQL persistence."""
+    audit_repo = SQLAuditRepository(session)
+    audit_svc = AuditService(audit_repo)
+    job_repo = SQLJobRepository(session)
+    return GetJobDetailUseCase(
+        job_repository=job_repo,
+        audit_service=audit_svc,
     )

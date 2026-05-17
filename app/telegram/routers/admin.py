@@ -16,6 +16,7 @@ from app.application.dtos import (
     AddUserResult,
     CancelJobDto,
     CancelJobResult,
+    GetJobDetailDto,
     HealthCheckDto,
     HealthCheckResult,
     QueryJobsDto,
@@ -38,6 +39,7 @@ from app.telegram.dependencies import (
     TelegramDependencies,
     build_add_user_use_case,
     build_cancel_job_use_case,
+    build_get_job_detail_use_case,
     build_health_check_use_case,
     build_list_jobs_use_case,
     build_list_users_use_case,
@@ -210,7 +212,11 @@ async def cmd_jobs(
     telegram_deps: TelegramDependencies,
     user: User,
 ) -> None:
-    """Return the first page of recent backup jobs."""
+    """Return the first page of recent backup jobs (ADMIN only)."""
+    if not user.has_role(UserRole.ADMIN):
+        await message.answer("No tienes permiso para gestionar jobs.")
+        return
+
     result = await _run_jobs_query(telegram_deps, user, page=1)
     text = _render_jobs_list(result)
     keyboard = build_jobs_keyboard(result.jobs, page=1, page_size=_JOBS_PAGE_SIZE)
@@ -370,6 +376,10 @@ async def on_job_page(
     if not isinstance(callback.message, Message):
         return
 
+    if not user.has_role(UserRole.ADMIN):
+        await callback.message.edit_text("No tienes permiso para gestionar jobs.")
+        return
+
     await _send_jobs_page(
         edit_message=callback.message,
         deps=telegram_deps,
@@ -392,17 +402,26 @@ async def on_job_action(
         return
 
     if callback_data.action == "detail":
-        from app.infrastructure.persistence.sql_job_repository import SQLJobRepository
-
+        dto = GetJobDetailDto(
+            user=user,
+            job_id=callback_data.job_id,
+            topic="ADMIN",
+            command="JOB_DETAIL",
+        )
         async with telegram_deps.session_factory() as session:
-            repo = SQLJobRepository(session)
-            job = await repo.get_by_id(callback_data.job_id)
-            if job is None:
+            use_case = build_get_job_detail_use_case(telegram_deps, session)
+            try:
+                detail_result = await use_case.execute(dto)
+            except JobNotFoundError:
                 await callback.message.edit_text(
                     f"Job <code>{callback_data.job_id}</code> no encontrado."
                 )
                 return
-            text = _render_job_detail(job)
+            except DomainPermissionError:
+                await callback.message.edit_text("No tienes permiso para ver este job.")
+                return
+            await session.commit()
+            text = _render_job_detail(detail_result.job)
             await callback.message.edit_text(text)
         return
 
