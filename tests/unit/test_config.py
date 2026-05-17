@@ -33,7 +33,7 @@ class TestAppConfigValidation:
         therefore flags ``AppConfig()`` as missing arguments. We centralise the
         ``# type: ignore`` here so that every test method remains clean.
         """
-        return AppConfig()  # type: ignore[call-arg]
+        return AppConfig()
 
     def test_valid_minimal_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A minimal valid configuration loads successfully."""

@@ -30,7 +30,7 @@ from app.infrastructure.filesystem.aio_fs_utils import AioFsUtils
 from app.infrastructure.logging import clear_correlation_id, set_correlation_id
 from app.infrastructure.mongo.mongo_connection import MongoConnection
 from app.infrastructure.mongo.mongo_metadata_adapter import MongoMetadataAdapter
-from app.infrastructure.notifier.logging_notifier import LoggingNotifier
+from app.infrastructure.notifier.telegram_notifier import TelegramNotifier
 from app.infrastructure.persistence.database import (
     create_engine,
     create_session_factory,
@@ -40,6 +40,7 @@ from app.infrastructure.persistence.sql_audit_repository import SQLAuditReposito
 from app.infrastructure.persistence.sql_job_repository import SQLJobRepository
 from app.infrastructure.queue.redis_connection import RedisConnection
 from app.infrastructure.queue.redis_lock_manager import RedisLockManager
+from app.infrastructure.telegram.aiogram_bot import AiogramBot
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ async def _cancel_check() -> bool:
 
 async def _execute(job_id: str) -> None:
     """Build the dependency graph and run the backup use case."""
-    config = AppConfig()  # type: ignore[call-arg]
+    config = AppConfig()
     engine = await create_engine(config)
 
     try:
@@ -76,14 +77,20 @@ async def _execute(job_id: str) -> None:
             fs_utils = AioFsUtils()
 
             # Infrastructure adapters
+            import redis.asyncio as aioredis
+
             mongo_conn = MongoConnection.from_config(config)
             mongo_conn.connect()
             redis_conn = RedisConnection.from_config(config)
             redis_conn.connect()
+            aioredis_client = aioredis.Redis.from_url(config.redis_url)
+
+            aiogram_bot = AiogramBot.from_config(config)
+            aiogram_bot.start()
             try:
                 backup_engine = MongodumpBackupEngine(config.mongodb_uri)
                 mongo_metadata = MongoMetadataAdapter(mongo_conn)
-                notifier = LoggingNotifier()
+                notifier = TelegramNotifier(aiogram_bot)
                 retention_manager = RetentionManager(
                     fs_utils=fs_utils,
                     backup_base_path=config.backup_base_path,
@@ -91,7 +98,7 @@ async def _execute(job_id: str) -> None:
                     retention_custom_weeks=config.retention_custom_weeks,
                     retention_max_gb=config.retention_max_gb,
                 )
-                lock_manager = RedisLockManager(redis_conn)
+                lock_manager = RedisLockManager(aioredis_client)
 
                 use_case = ExecuteBackupUseCase(
                     job_repository=job_repo,
@@ -110,6 +117,8 @@ async def _execute(job_id: str) -> None:
             finally:
                 mongo_conn.close()
                 redis_conn.close()
+                await aioredis_client.close()
+                await aiogram_bot.shutdown()
     finally:
         await dispose_engine(engine)
 
@@ -155,20 +164,22 @@ def _backup_worker_fn(
 
 
 if __name__ == "__main__":
-    config = AppConfig()  # type: ignore[call-arg]
-    from app.infrastructure.logging.structured_logger import configure_logging
     from pathlib import Path
 
+    import redis as sync_redis
+
+    from app.infrastructure.logging.structured_logger import configure_logging
+
+    config = AppConfig()
     configure_logging(log_dir=Path("logs"), level=config.log_level)
 
-    redis_conn = RedisConnection.from_config(config)
-    redis_conn.connect()
+    logger.info("Connecting to Redis at %s for RQ worker", config.redis_url)
+    redis_client = sync_redis.from_url(config.redis_url)  # type: ignore[no-untyped-call]
 
     logger.info("Starting RQ worker on queue 'default'...")
     worker = Worker(
         queues=["default"],
-        connection=redis_conn.client,
+        connection=redis_client,
         name="mongo_ops_backup_worker",
     )
     worker.work()
-

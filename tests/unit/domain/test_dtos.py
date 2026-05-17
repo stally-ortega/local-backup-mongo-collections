@@ -42,7 +42,7 @@ class TestCollectionTarget:
     def test_is_immutable(self) -> None:
         target = CollectionTarget(database="mydb", collection="users")
         with pytest.raises(ValidationError):
-            target.status = CollectionBackupStatus.SUCCESS
+            target.status = CollectionBackupStatus.SUCCESS  # type: ignore[misc]
 
 
 class TestJobProgress:
@@ -77,4 +77,4 @@ class TestJobProgress:
     def test_is_immutable(self) -> None:
         progress = JobProgress(total_collections=5)
         with pytest.raises(ValidationError):
-            progress.retry_count = 1
+            progress.retry_count = 1  # type: ignore[misc]

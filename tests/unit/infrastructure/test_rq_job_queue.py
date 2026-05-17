@@ -1,5 +1,6 @@
 """Unit tests for RQJobQueue."""
 
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -21,15 +22,15 @@ def queue(redis_conn: RedisConnection) -> RQJobQueue:
 
 
 class TestEnqueue:
-    @patch("app.infrastructure.queue.rq_job_queue.rq.Queue.enqueue_call")
+    @patch("app.infrastructure.queue.rq_job_queue.rq.Queue.enqueue_in")
     async def test_enqueues_worker_fn(
         self,
-        mock_enqueue_call: MagicMock,
+        mock_enqueue_in: MagicMock,
         queue: RQJobQueue,
     ) -> None:
         mock_job = MagicMock()
         mock_job.id = "rq-job-123"
-        mock_enqueue_call.return_value = mock_job
+        mock_enqueue_in.return_value = mock_job
 
         result = await queue.enqueue(
             job_id="platform-job-1",
@@ -39,20 +40,22 @@ class TestEnqueue:
         )
 
         assert result == "rq-job-123"
-        mock_enqueue_call.assert_called_once()
-        call_kwargs = mock_enqueue_call.call_args.kwargs
+        mock_enqueue_in.assert_called_once()
+        call_args = mock_enqueue_in.call_args
+        assert call_args.args[0] == timedelta(seconds=2)
+        call_kwargs = call_args.kwargs
         assert call_kwargs["job_id"] == "platform-job-1"
         assert call_kwargs["at_front"] is False
 
-    @patch("app.infrastructure.queue.rq_job_queue.rq.Queue.enqueue_call")
+    @patch("app.infrastructure.queue.rq_job_queue.rq.Queue.enqueue_in")
     async def test_high_priority_sets_at_front(
         self,
-        mock_enqueue_call: MagicMock,
+        mock_enqueue_in: MagicMock,
         queue: RQJobQueue,
     ) -> None:
         mock_job = MagicMock()
         mock_job.id = "rq-job-456"
-        mock_enqueue_call.return_value = mock_job
+        mock_enqueue_in.return_value = mock_job
 
         await queue.enqueue(
             job_id="platform-job-2",
@@ -61,7 +64,7 @@ class TestEnqueue:
             priority="high",
         )
 
-        call_kwargs = mock_enqueue_call.call_args.kwargs
+        call_kwargs = mock_enqueue_in.call_args.kwargs
         assert call_kwargs["at_front"] is True
 
 

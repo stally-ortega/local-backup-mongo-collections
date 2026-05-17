@@ -5,6 +5,7 @@ RQ status strings are mapped to the project's :class:`JobStatus` enum.
 """
 
 import logging
+from datetime import timedelta
 
 import rq
 from rq.job import Job as RQJob
@@ -79,10 +80,14 @@ class RQJobQueue(IJobQueue):
         # as a coarse approximation for ``high`` priority.
         at_front = priority == "high"
 
-        rq_job: RQJob = self._queue.enqueue_call(
-            func=_backup_worker_fn,
-            args=(job_id,),
-            kwargs={"job_type": job_type, "payload": payload},
+        # Delay execution by 2 seconds so the Bot request can finish its
+        # DB commit before the Worker tries to read the job row.
+        rq_job: RQJob = self._queue.enqueue_in(
+            timedelta(seconds=2),
+            _backup_worker_fn,
+            job_id,
+            job_type=job_type,
+            payload=payload,
             job_id=job_id,
             at_front=at_front,
         )

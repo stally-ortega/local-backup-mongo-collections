@@ -28,7 +28,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # Override the URL from our pydantic-settings so we do not duplicate it.
-_app_config = AppConfig()  # type: ignore[call-arg]
+_app_config = AppConfig()
 config.set_main_option("sqlalchemy.url", str(_app_config.database_url))
 
 
