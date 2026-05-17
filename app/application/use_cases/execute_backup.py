@@ -6,6 +6,7 @@ retention enforcement, and user notification.
 """
 
 import asyncio
+import re
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from datetime import datetime
@@ -165,6 +166,12 @@ class ExecuteBackupUseCase:
 
         try:
             job.mark_running()
+
+            if not re.fullmatch(r"^[a-f0-9]{64}$", job.cluster_uri_hash):
+                raise BackupEngineError(
+                    message="Invalid cluster_uri_hash: must be a 64-character SHA-256 hex string",
+                    details={"cluster_uri_hash": job.cluster_uri_hash},
+                )
 
             output_dir = self._backup_base_path / job.cluster_uri_hash / job.id
             await self._fs_utils.ensure_dir(output_dir)

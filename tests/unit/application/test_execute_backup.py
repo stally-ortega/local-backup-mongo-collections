@@ -318,9 +318,9 @@ async def _store_queued_job(
     targets: list[CollectionTarget] | None = None,
 ) -> BackupJob:
     job = (
-        BackupJob.create_full("job-001", 1, "hash123")
+        BackupJob.create_full("job-001", 1, "a" * 64)
         if backup_type == BackupType.FULL
-        else BackupJob.create_custom("job-001", 1, "hash123", targets or [])
+        else BackupJob.create_custom("job-001", 1, "a" * 64, targets or [])
     )
     job.mark_queued()
     await repo.save(job)
@@ -501,7 +501,7 @@ class TestExecuteBackupErrors:
         use_case: ExecuteBackupUseCase,
         job_repo: _FakeJobRepo,
     ) -> None:
-        job = BackupJob.create_full("job-002", 1, "hash")
+        job = BackupJob.create_full("job-002", 1, "a" * 64)
         job.mark_queued()
         job.mark_running()
         job.mark_success()
