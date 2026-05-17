@@ -14,7 +14,7 @@ from typing import Any
 from aiogram import BaseMiddleware, Bot
 from aiogram.types import CallbackQuery, Message, TelegramObject, Update
 
-from app.config import AppConfig
+from app.config import AppConfig, settings
 from app.infrastructure.logging.structured_logger import get_logger
 from app.telegram.middlewares._utils import extract_context, safe_send_message
 
@@ -50,18 +50,26 @@ class ErrorHandlerMiddleware(BaseMiddleware):
             await self._notify_user(event, data)
 
             # B. Send detailed report to the execution-errors topic.
-            if self._config is not None and ctx.topic_id != self._config.topic_execution_errors:
+            target_chat = int(settings.telegram_chat_id)
+            target_topic = int(settings.topic_execution_errors)
+            if ctx.topic_id != target_topic:
                 error_details = "".join(
                     traceback.format_exception(type(exc), exc, exc.__traceback__)
                 )
                 safe_error = html.escape(error_details)[:3800]
                 bot = data.get("bot")
                 if isinstance(bot, Bot):
+                    self._logger.error(
+                        "Intentando enviar error fatal a chat=%s topic=%s",
+                        target_chat,
+                        target_topic,
+                    )
                     try:
                         await bot.send_message(
-                            chat_id=self._config.telegram_chat_id,
+                            chat_id=target_chat,
                             text=f"🚨 <b>ERROR FATAL</b>\n<pre>{safe_error}</pre>",
-                            message_thread_id=self._config.topic_execution_errors,
+                            message_thread_id=target_topic,
+                            parse_mode="HTML",
                         )
                     except Exception as inner_e:
                         self._logger.error(

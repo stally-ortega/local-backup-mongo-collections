@@ -209,7 +209,7 @@ if __name__ == "__main__":
     configure_logging(log_dir=Path("logs"), level=config.log_level)
 
     logger.info("Connecting to Redis at %s for RQ worker", config.redis_url)
-    redis_client = sync_redis.from_url(config.redis_url)  # type: ignore[no-untyped-call]
+    redis_client = sync_redis.from_url(config.redis_url)  # type: ignore[no-untyped-call,unused-ignore]
 
     logger.info("Starting RQ worker on queue 'default'...")
     worker = Worker(

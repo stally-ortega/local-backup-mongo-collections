@@ -5,6 +5,7 @@ synthetic dependencies so that no real database or Telegram network call is
 required.
 """
 
+from collections.abc import Generator
 from datetime import datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -57,6 +58,12 @@ def mock_bot() -> MagicMock:
     bot = MagicMock(spec=Bot)
     bot.send_message = AsyncMock(return_value=None)
     return bot
+
+
+@pytest.fixture
+def mock_settings(app_config: AppConfig) -> Generator[AppConfig, None, None]:
+    with patch("app.telegram.middlewares.error_handler_middleware.settings", app_config):
+        yield app_config
 
 
 def _make_message_update(
@@ -150,6 +157,7 @@ class TestErrorHandlerMiddleware:
         app_config: AppConfig,
         mock_handler: AsyncMock,
         mock_bot: MagicMock,
+        mock_settings: AppConfig,
     ) -> None:
         mock_handler.side_effect = RuntimeError("boom")
         mw = ErrorHandlerMiddleware(config=app_config)
@@ -163,12 +171,16 @@ class TestErrorHandlerMiddleware:
         app_config: AppConfig,
         mock_handler: AsyncMock,
         mock_bot: MagicMock,
+        mock_settings: AppConfig,
     ) -> None:
         mock_handler.side_effect = RuntimeError("boom")
         mw = ErrorHandlerMiddleware(config=app_config)
         data = _make_data(mock_bot)
-        # topic_id == topic_execution_errors (7)
-        await mw(mock_handler, _make_message_update(topic_id=7), data)
+        await mw(
+            mock_handler,
+            _make_message_update(topic_id=app_config.topic_execution_errors),
+            data,
+        )
         mock_bot.send_message.assert_awaited_once()
 
     async def test_passes_through_when_no_error(

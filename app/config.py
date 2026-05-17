@@ -176,3 +176,6 @@ class AppConfig(BaseSettings):
         persisted in job queues, audit logs, or Telegram messages.
         """
         return hashlib.sha256(self.mongodb_uri.encode("utf-8")).hexdigest()
+
+
+settings = AppConfig()
