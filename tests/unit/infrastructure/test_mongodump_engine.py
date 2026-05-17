@@ -144,7 +144,7 @@ class TestBackupCollectionErrors:
 
     @patch("app.infrastructure.backup.mongodump_engine.shutil.which")
     @patch("app.infrastructure.backup.mongodump_engine.asyncio.create_subprocess_exec")
-    async def test_empty_dump_file_raises(
+    async def test_empty_dump_file_is_allowed(
         self,
         mock_subprocess: MagicMock,
         mock_which: MagicMock,
@@ -167,10 +167,48 @@ class TestBackupCollectionErrors:
         mock_proc.wait = AsyncMock(return_value=0)
         mock_subprocess.return_value = mock_proc
 
-        with pytest.raises(BackupEngineError) as exc_info:
-            await engine.backup_collection("mydb", "mycol", tmp_path)
+        result = await engine.backup_collection("mydb", "mycol", tmp_path)
 
-        assert "empty" in exc_info.value.message.lower()
+        assert result.status == CollectionBackupStatus.SUCCESS
+        assert result.size_bytes == 0
+
+
+class TestBackupCollectionInjection:
+    @patch("app.infrastructure.backup.mongodump_engine.shutil.which")
+    @patch("app.infrastructure.backup.mongodump_engine.asyncio.create_subprocess_exec")
+    async def test_malicious_names_passed_as_single_arguments(
+        self,
+        mock_subprocess: MagicMock,
+        mock_which: MagicMock,
+        engine: MongodumpBackupEngine,
+        tmp_path: Path,
+    ) -> None:
+        mock_which.return_value = "/usr/bin/mongodump"
+
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = MagicMock()
+        mock_proc.stdout.read = AsyncMock(return_value=b"stdout")
+        mock_proc.stderr = MagicMock()
+        mock_proc.stderr.read = AsyncMock(return_value=b"stderr")
+        mock_proc.wait = AsyncMock(return_value=0)
+        mock_subprocess.return_value = mock_proc
+
+        malicious_db = "mydb --eval db.dropDatabase()"
+        malicious_col = "mycol; DROP TABLE users"
+        db_dir = tmp_path / malicious_db
+        db_dir.mkdir()
+        dump_file = db_dir / f"{malicious_col}.bson"
+        dump_file.write_bytes(b"fake")
+
+        await engine.backup_collection(malicious_db, malicious_col, tmp_path)
+
+        mock_subprocess.assert_called_once()
+        cmd = mock_subprocess.call_args[0]
+        assert any(arg == f"--db={malicious_db}" for arg in cmd)
+        assert any(arg == f"--collection={malicious_col}" for arg in cmd)
+        # Ensure the number of positional args matches exactly 6 (no extra shell splitting)
+        assert len(cmd) == 6
 
 
 class TestValidateConnection:
