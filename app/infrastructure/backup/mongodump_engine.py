@@ -207,8 +207,8 @@ class MongodumpBackupEngine(IBackupEngine):
         proc: asyncio.subprocess.Process,
     ) -> tuple[bytes, bytes]:
         """Read stdout and stderr concurrently to avoid pipe deadlock."""
-        assert proc.stdout is not None
-        assert proc.stderr is not None
+        if proc.stdout is None or proc.stderr is None:
+            raise RuntimeError("mongodump process streams are unexpectedly None")
 
         stdout_task = asyncio.create_task(proc.stdout.read())
         stderr_task = asyncio.create_task(proc.stderr.read())

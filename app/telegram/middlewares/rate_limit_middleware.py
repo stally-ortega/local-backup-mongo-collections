@@ -105,8 +105,8 @@ class RateLimitMiddleware(BaseMiddleware):
         return await handler(event, data)
 
     async def _check_with_redis(self, telegram_id: int, action: str) -> bool:
-        assert self._redis_async_client is not None
-        assert self._config is not None
+        if self._redis_async_client is None or self._config is None:
+            raise RuntimeError("Redis rate limiter not configured")
         repo = RedisRateLimitRepository(self._redis_async_client)
         return await repo.check_limit(
             telegram_id,
@@ -116,8 +116,8 @@ class RateLimitMiddleware(BaseMiddleware):
         )
 
     async def _increment_with_redis(self, telegram_id: int, action: str) -> int:
-        assert self._redis_async_client is not None
-        assert self._config is not None
+        if self._redis_async_client is None or self._config is None:
+            raise RuntimeError("Redis rate limiter not configured")
         repo = RedisRateLimitRepository(self._redis_async_client)
         return await repo.increment(
             telegram_id,

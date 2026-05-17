@@ -54,8 +54,13 @@ select = [
     "C4",    # flake8-comprehensions
     "SIM",   # flake8-simplify
     "TCH",   # flake8-type-checking
+    "S",     # flake8-bandit (security)
 ]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S105", "S106", "S108"]
+"scripts/run_mypy.py" = ["S603"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
