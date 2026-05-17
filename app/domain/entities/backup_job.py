@@ -35,6 +35,7 @@ class BackupJob(BaseModel):
     started_at: datetime | None = None
     completed_at: datetime | None = None
     cancelled_by: int | None = None
+    queue_job_id: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

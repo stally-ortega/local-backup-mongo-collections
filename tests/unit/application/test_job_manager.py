@@ -57,12 +57,6 @@ class _FakeJobRepo:
     async def clear_session_cache(self) -> None:
         pass
 
-    async def update_status(self, job_id: str, status: JobStatus) -> BackupJob | None:
-        job = self._jobs.get(job_id)
-        if job:
-            job.status = status
-        return job
-
     async def get_job_stats(self) -> dict[str, Any]:
         return {
             "jobs_today": 0,
@@ -230,6 +224,7 @@ class TestJobManagerEnqueueJob:
         stored = await fake_job_repo.get_by_id(job.id)
         assert stored is not None
         assert stored.status == JobStatus.QUEUED
+        assert stored.queue_job_id == queue_id
 
         audit = [e for e in fake_audit_repo.entries if e.action == "JOB_QUEUED"]
         assert len(audit) == 1
@@ -273,6 +268,7 @@ class TestJobManagerCancelJob:
         fake_job_repo: IJobRepository,
         owner_user: User,
         fake_audit_repo: _FakeAuditRepo,
+        fake_job_queue: _FakeJobQueue,
     ) -> None:
         request = CreateJobRequest(
             requester_telegram_id=owner_user.telegram_id,
@@ -287,6 +283,7 @@ class TestJobManagerCancelJob:
 
         assert cancelled.status == JobStatus.CANCELLED
         assert cancelled.cancelled_by == owner_user.telegram_id
+        assert job.queue_job_id in fake_job_queue._cancellations
 
         audit = [e for e in fake_audit_repo.entries if e.action == "JOB_CANCELLED"]
         assert len(audit) == 1

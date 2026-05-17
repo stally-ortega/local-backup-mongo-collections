@@ -196,6 +196,7 @@ class SQLJobRepository(IJobRepository):
             started_at=orm.started_at,
             completed_at=orm.completed_at,
             cancelled_by=orm.cancelled_by,
+            queue_job_id=orm.queue_job_id,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
         )
@@ -235,6 +236,7 @@ class SQLJobRepository(IJobRepository):
             started_at=job.started_at,
             completed_at=job.completed_at,
             cancelled_by=job.cancelled_by,
+            queue_job_id=job.queue_job_id,
             created_at=job.created_at,
             updated_at=job.updated_at,
             **progress_kwargs,
@@ -263,6 +265,7 @@ class SQLJobRepository(IJobRepository):
         orm.started_at = job.started_at
         orm.completed_at = job.completed_at
         orm.cancelled_by = job.cancelled_by
+        orm.queue_job_id = job.queue_job_id
         orm.updated_at = job.updated_at
 
         if job.progress:

@@ -304,3 +304,18 @@ class TestSQLJobRepositorySave:
         assert found.output_path is not None
         assert found.output_path.name == "archive"
         assert found.output_path.parent.name == "backup"
+
+    @pytest.mark.asyncio
+    async def test_round_trips_queue_job_id(
+        self,
+        repo: SQLJobRepository,
+        db_session: AsyncSession,
+    ) -> None:
+        job = _make_job(job_id="queue-job")
+        job.queue_job_id = "rq-abc-123"
+        await repo.save(job)
+        await db_session.commit()
+
+        found = await repo.get_by_id("queue-job")
+        assert found is not None
+        assert found.queue_job_id == "rq-abc-123"

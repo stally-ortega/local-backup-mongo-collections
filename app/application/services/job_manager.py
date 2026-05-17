@@ -45,10 +45,6 @@ class JobManager:
         self._job_queue = job_queue
         self._permission_service = permission_service
         self._audit_service = audit_service
-        # In-memory mapping of local job_id → queue_job_id.
-        # NOTE: This is transient. Production deployments should persist the
-        # mapping (e.g. as a column on BackupJob) to survive restarts.
-        self._job_id_to_queue_id: dict[str, str] = {}
 
     async def create_job(self, request: CreateJobRequest) -> BackupJob:
         """Persist a new backup job and return the created entity."""
@@ -111,9 +107,8 @@ class JobManager:
         )
 
         job.mark_queued()
+        job.queue_job_id = queue_job_id
         await self._job_repository.save(job)
-
-        self._job_id_to_queue_id[job_id] = queue_job_id
 
         await self._audit_service.log_job_event(
             job_id=job_id,
@@ -142,10 +137,8 @@ class JobManager:
                 details={"job_id": job_id, "user_id": user.telegram_id},
             )
 
-        if job.status == JobStatus.QUEUED:
-            queue_job_id = self._job_id_to_queue_id.get(job_id)
-            if queue_job_id:
-                await self._job_queue.cancel_job(queue_job_id)
+        if job.status == JobStatus.QUEUED and job.queue_job_id:
+            await self._job_queue.cancel_job(job.queue_job_id)
 
         job.mark_cancelled(user.telegram_id)
         await self._job_repository.save(job)

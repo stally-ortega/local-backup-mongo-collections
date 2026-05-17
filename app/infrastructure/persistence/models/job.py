@@ -55,6 +55,10 @@ class JobORM(Base):
     started_at: Mapped[datetime | None]
     completed_at: Mapped[datetime | None]
     cancelled_by: Mapped[int | None] = mapped_column(BigInteger)
+    queue_job_id: Mapped[str | None] = mapped_column(
+        String(36),
+        comment="External queue identifier (e.g. RQ job id)",
+    )
     retry_count: Mapped[int] = mapped_column(default=0, nullable=False)
     total_collections: Mapped[int | None]
     completed_collections: Mapped[int] = mapped_column(default=0, nullable=False)
