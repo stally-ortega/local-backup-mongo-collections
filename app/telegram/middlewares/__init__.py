@@ -6,9 +6,10 @@ The global stack follows the execution order defined in the work-plan
 1. LoggingMiddleware – structured trace of every update.
 2. ErrorHandlerMiddleware – catch-all exception boundary.
 3. TopicFilterMiddleware – validates ``message_thread_id``.
-4. AuthMiddleware – whitelist check + injects ``data["user"]``.
-5. RoleMiddleware – RBAC matrix validation.
-6. RateLimitMiddleware – sliding-window throttling.
+4. RateLimitMiddleware – sliding-window throttling (before auth so that
+   unauthenticated requests are also rate-limited).
+5. AuthMiddleware – whitelist check + injects ``data["user"]``.
+6. RoleMiddleware – RBAC matrix validation.
 7. AuditMiddleware – post-handler audit persistence.
 
 Dependencies are injected via :class:`MiddlewareDependencies` so that
@@ -67,6 +68,11 @@ def get_global_middlewares(
         LoggingMiddleware(),
         ErrorHandlerMiddleware(config=config),
         TopicFilterMiddleware(config=config),
+        RateLimitMiddleware(
+            session_factory=session_factory,
+            config=config,
+            redis_async_client=redis_async_client,
+        ),
         AuthMiddleware(
             session_factory=session_factory,
             audit_service=audit_service,
@@ -77,11 +83,6 @@ def get_global_middlewares(
             permission_service=permission_service,
             config=config,
             audit_service=audit_service,
-        ),
-        RateLimitMiddleware(
-            session_factory=session_factory,
-            config=config,
-            redis_async_client=redis_async_client,
         ),
         AuditMiddleware(
             session_factory=session_factory,
