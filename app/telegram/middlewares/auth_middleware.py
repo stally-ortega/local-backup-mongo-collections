@@ -63,7 +63,7 @@ class AuthMiddleware(BaseMiddleware):
             user_repo = SQLUserRepository(session)
             user = await user_repo.get_by_telegram_id(ctx.user_id)
 
-            if user is None:
+            if user is None or not user.is_active:
                 await self._reply_unauthorized(ctx, data)
                 await self._log_denied(session, ctx)
                 await session.commit()

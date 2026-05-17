@@ -294,6 +294,27 @@ class TestAuthMiddleware:
                 message_thread_id=1,
             )
 
+    async def test_rejects_inactive_user(
+        self,
+        mock_session_factory: MagicMock,
+        mock_handler: AsyncMock,
+        mock_bot: MagicMock,
+    ) -> None:
+        inactive_user = User(telegram_id=42, username="bob", role=UserRole.ADMIN, is_active=False)
+        with patch("app.telegram.middlewares.auth_middleware.SQLUserRepository") as mock_repo_cls:
+            mock_repo = mock_repo_cls.return_value
+            mock_repo.get_by_telegram_id = AsyncMock(return_value=inactive_user)
+            mw = AuthMiddleware(session_factory=mock_session_factory)
+            data = _make_data(mock_bot)
+            result = await mw(mock_handler, _make_message_update(user_id=42), data)
+            assert result is None
+            mock_handler.assert_not_awaited()
+            mock_bot.send_message.assert_awaited_once_with(
+                chat_id=-100,
+                text="No autorizado",
+                message_thread_id=1,
+            )
+
     async def test_fallback_when_no_session_factory(
         self,
         mock_handler: AsyncMock,
