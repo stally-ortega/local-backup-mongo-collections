@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from app.domain.repositories.repositories import IAuditRepository, IJobRepository
 from app.infrastructure.filesystem.aio_fs_utils import AioFsUtils
 from app.infrastructure.logging import clear_correlation_id, set_correlation_id
+from app.infrastructure.logging.sanitizer import sanitize_traceback
 from app.infrastructure.mongo.mongo_connection import MongoConnection
 from app.infrastructure.mongo.mongo_metadata_adapter import MongoMetadataAdapter
 from app.infrastructure.notifier.telegram_notifier import TelegramNotifier
@@ -132,7 +133,7 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
                     error_details = "".join(
                         traceback.format_exception(type(exc), exc, exc.__traceback__)
                     )
-                    safe_error = html.escape(error_details)[:3800]
+                    safe_error = html.escape(sanitize_traceback(error_details))[:3800]
                     try:
                         await notifier.send_message(
                             chat_id=int(config.telegram_chat_id),

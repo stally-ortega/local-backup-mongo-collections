@@ -15,6 +15,7 @@ from aiogram import BaseMiddleware, Bot
 from aiogram.types import BufferedInputFile, CallbackQuery, Message, TelegramObject, Update
 
 from app.config import AppConfig, settings
+from app.infrastructure.logging.sanitizer import sanitize_traceback
 from app.infrastructure.logging.structured_logger import get_logger
 from app.telegram.middlewares._utils import extract_context, safe_send_message
 
@@ -56,8 +57,9 @@ class ErrorHandlerMiddleware(BaseMiddleware):
                 error_details = "".join(
                     traceback.format_exception(type(exc), exc, exc.__traceback__)
                 )
+                sanitized = sanitize_traceback(error_details)
                 log_file = BufferedInputFile(
-                    error_details.encode("utf-8"),
+                    sanitized.encode("utf-8"),
                     filename=f"error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 )
                 origen_chat = f"{ctx.chat_id}" if ctx.chat_id is not None else "N/A"
