@@ -54,7 +54,7 @@ class TestBackupCollectionHappyPath:
 
         mock_subprocess.assert_called_once()
         cmd = mock_subprocess.call_args[0]
-        assert cmd[0] == "mongodump"
+        assert cmd[0] == "/usr/bin/mongodump"
         assert "--db=mydb" in cmd
         assert "--collection=mycol" in cmd
 
@@ -242,6 +242,55 @@ class TestValidateConnection:
 
         assert result is False
         mock_client.close.assert_called_once()
+
+
+class TestConfiguredBinary:
+    @patch("app.infrastructure.backup.mongodump_engine.asyncio.create_subprocess_exec")
+    async def test_uses_configured_path_when_provided(
+        self,
+        mock_subprocess: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        binary = tmp_path / "custom_mongodump.exe"
+        binary.write_text("fake")
+        engine = MongodumpBackupEngine(
+            "mongodb://localhost:27017",
+            dump_timeout_seconds=5.0,
+            mongodump_path=str(binary),
+        )
+
+        db_dir = tmp_path / "mydb"
+        db_dir.mkdir()
+        dump_file = db_dir / "mycol.bson"
+        dump_file.write_bytes(b"fake")
+
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = MagicMock()
+        mock_proc.stdout.read = AsyncMock(return_value=b"stdout")
+        mock_proc.stderr = MagicMock()
+        mock_proc.stderr.read = AsyncMock(return_value=b"stderr")
+        mock_proc.wait = AsyncMock(return_value=0)
+        mock_subprocess.return_value = mock_proc
+
+        await engine.backup_collection("mydb", "mycol", tmp_path)
+
+        mock_subprocess.assert_called_once()
+        cmd = mock_subprocess.call_args[0]
+        assert cmd[0] == str(binary)
+
+    async def test_raises_when_configured_path_missing(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        engine = MongodumpBackupEngine(
+            "mongodb://localhost:27017",
+            dump_timeout_seconds=5.0,
+            mongodump_path="/nonexistent/mongodump",
+        )
+
+        with pytest.raises(BackupEngineError, match="mongodump binary not found"):
+            await engine.backup_collection("mydb", "mycol", tmp_path)
 
 
 class TestGetVersion:

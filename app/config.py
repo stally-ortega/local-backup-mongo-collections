@@ -69,6 +69,10 @@ class AppConfig(BaseSettings):
         min_length=1,
         description="MongoDB connection URI",
     )
+    mongodump_path: str | None = Field(
+        default=None,
+        description="Absolute path to mongodump binary (optional; defaults to PATH lookup)",
+    )
 
     # Redis
     redis_url: str = Field(

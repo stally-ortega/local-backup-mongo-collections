@@ -48,12 +48,26 @@ class MongodumpBackupEngine(IBackupEngine):
         uri: str,
         *,
         dump_timeout_seconds: float = _DEFAULT_DUMP_TIMEOUT_S,
+        mongodump_path: str | None = None,
     ) -> None:
         self._uri = uri
         self._dump_timeout = dump_timeout_seconds
+        self._mongodump_path = mongodump_path
 
-        if not shutil.which("mongodump"):
-            logger.warning("mongodump binary not found in PATH")
+        resolved = self._resolve_binary()
+        if resolved is None:
+            logger.warning("mongodump binary not found at %s", mongodump_path or "PATH")
+
+    def _resolve_binary(self) -> str | None:
+        """Return the absolute path to the mongodump binary."""
+        if self._mongodump_path is not None:
+            candidate = Path(self._mongodump_path)
+            if candidate.exists() and candidate.is_file():
+                return str(candidate.resolve())
+            logger.warning("configured mongodump_path does not exist: %s", self._mongodump_path)
+            return None
+        found = shutil.which("mongodump")
+        return found
 
     # ------------------------------------------------------------------
     # IBackupEngine implementation
@@ -78,8 +92,15 @@ class MongodumpBackupEngine(IBackupEngine):
             When the subprocess fails, times out, or the post-dump validation
             does not find a non-empty BSON file.
         """
+        binary = self._resolve_binary()
+        if binary is None:
+            raise BackupEngineError(
+                message="mongodump binary not found",
+                details={"configured_path": self._mongodump_path},
+            )
+
         cmd = [
-            "mongodump",
+            binary,
             f"--uri={self._uri}",
             "--ssl",
             f"--db={database}",
