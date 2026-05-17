@@ -39,9 +39,16 @@ class _FakeJobRepo:
         return self._jobs.get(job_id)
 
     async def list_by_user(
-        self, telegram_id: int, page: int = 1, page_size: int = 50
+        self,
+        telegram_id: int,
+        status: JobStatus | None = None,
+        page: int = 1,
+        page_size: int = 50,
     ) -> list[BackupJob]:
-        return [j for j in self._jobs.values() if j.requester_telegram_id == telegram_id]
+        jobs = [j for j in self._jobs.values() if j.requester_telegram_id == telegram_id]
+        if status is not None:
+            jobs = [j for j in jobs if j.status == status]
+        return jobs
 
     async def list_by_status(
         self, status: JobStatus, page: int = 1, page_size: int = 50

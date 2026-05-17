@@ -44,6 +44,7 @@ class QueryJobsUseCase:
         else:
             jobs = await self._job_repository.list_by_user(
                 telegram_id=dto.user.telegram_id,
+                status=dto.filter_status,
                 page=dto.page,
                 page_size=dto.page_size,
             )

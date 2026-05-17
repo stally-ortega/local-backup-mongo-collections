@@ -43,18 +43,22 @@ class SQLJobRepository(IJobRepository):
     async def list_by_user(
         self,
         telegram_id: int,
+        status: JobStatus | None = None,
         page: int = 1,
         page_size: int = 50,
     ) -> list[BackupJob]:
-        """Return all jobs requested by the given Telegram user."""
+        """Return jobs requested by the given Telegram user, optionally filtered by status."""
         offset = (page - 1) * page_size
-        result = await self._session.execute(
+        stmt = (
             select(JobORM)
             .where(JobORM.requester_telegram_id == telegram_id)
             .order_by(JobORM.created_at.desc())
             .offset(offset)
             .limit(page_size)
         )
+        if status is not None:
+            stmt = stmt.where(JobORM.status == status.value)
+        result = await self._session.execute(stmt)
         return [self._to_entity(row) for row in result.scalars().all()]
 
     async def list_by_status(

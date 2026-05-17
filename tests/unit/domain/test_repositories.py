@@ -42,7 +42,11 @@ class _FakeJobRepo:
         return BackupJob.create_full(job_id, 1, "hash")
 
     async def list_by_user(
-        self, telegram_id: int, page: int = 1, page_size: int = 50
+        self,
+        telegram_id: int,
+        status: JobStatus | None = None,
+        page: int = 1,
+        page_size: int = 50,
     ) -> list[BackupJob]:
         return []
 
@@ -59,9 +63,6 @@ class _FakeJobRepo:
 
     async def clear_session_cache(self) -> None:
         pass
-
-    async def update_status(self, job_id: str, status: JobStatus) -> BackupJob | None:
-        return BackupJob.create_full(job_id, 1, "hash")
 
     async def get_job_stats(self) -> dict[str, Any]:
         return {

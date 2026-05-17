@@ -135,6 +135,25 @@ class TestSQLJobRepositoryListByUser:
         page = await repo.list_by_user(5, page=2, page_size=2)
         assert len(page) == 1
 
+    @pytest.mark.asyncio
+    async def test_filters_by_status(
+        self,
+        repo: SQLJobRepository,
+        db_session: AsyncSession,
+    ) -> None:
+        await repo.save(_make_job(job_id="q1", requester_telegram_id=3, status=JobStatus.QUEUED))
+        await repo.save(_make_job(job_id="q2", requester_telegram_id=3, status=JobStatus.QUEUED))
+        await repo.save(_make_job(job_id="r1", requester_telegram_id=3, status=JobStatus.RUNNING))
+        await db_session.commit()
+
+        queued = await repo.list_by_user(3, status=JobStatus.QUEUED)
+        assert len(queued) == 2
+        assert all(j.status == JobStatus.QUEUED for j in queued)
+
+        running = await repo.list_by_user(3, status=JobStatus.RUNNING)
+        assert len(running) == 1
+        assert running[0].id == "r1"
+
 
 # ---------------------------------------------------------------------------
 # list_by_status

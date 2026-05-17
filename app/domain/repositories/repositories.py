@@ -49,9 +49,13 @@ class IJobRepository(Protocol):
         ...
 
     async def list_by_user(
-        self, telegram_id: int, page: int = 1, page_size: int = 50
+        self,
+        telegram_id: int,
+        status: JobStatus | None = None,
+        page: int = 1,
+        page_size: int = 50,
     ) -> list[BackupJob]:
-        """Return all jobs requested by the given Telegram user."""
+        """Return jobs requested by the given Telegram user, optionally filtered by status."""
         ...
 
     async def list_by_status(
