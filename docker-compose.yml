@@ -1,0 +1,51 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: mongo_ops_redis
+    # Redis is NOT exposed to the host; only reachable via the internal
+    # Docker network (e.g. redis://redis:6379/0 from sibling containers).
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mongo_ops_bot
+    command: ["python", "-m", "app"]
+    env_file:
+      - .env
+    volumes:
+      - ./backups:/app/backups
+      - ./logs:/app/logs
+      - ./mongo_ops.db:/app/mongo_ops.db
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mongo_ops_worker
+    command: ["python", "-m", "app.workers.backup_worker"]
+    env_file:
+      - .env
+    volumes:
+      - ./backups:/app/backups
+      - ./logs:/app/logs
+      - ./mongo_ops.db:/app/mongo_ops.db
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
