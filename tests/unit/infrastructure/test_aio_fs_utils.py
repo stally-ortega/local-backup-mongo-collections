@@ -24,6 +24,45 @@ class TestPathValidation:
         with pytest.raises(ValueError, match="outside the authorized base path"):
             await fs.ensure_dir(evil)
 
+    async def test_rejects_traversal_with_dotdot(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        safe_base = tmp_path / "safe"
+        safe_base.mkdir()
+        fs = AioFsUtils(base_path=safe_base)
+        evil = safe_base / "subdir" / ".." / ".." / "etc" / "passwd"
+
+        with pytest.raises(ValueError, match="outside the authorized base path"):
+            await fs.ensure_dir(evil)
+
+    async def test_rejects_traversal_in_compressed_source(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        safe_base = tmp_path / "safe"
+        safe_base.mkdir()
+        fs = AioFsUtils(base_path=safe_base)
+        evil_source = safe_base / ".." / "evil"
+        dest = safe_base / "out.tar.gz"
+
+        with pytest.raises(ValueError, match="outside the authorized base path"):
+            await fs.compress(evil_source, dest)
+
+    async def test_rejects_traversal_in_compressed_destination(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        safe_base = tmp_path / "safe"
+        safe_base.mkdir()
+        fs = AioFsUtils(base_path=safe_base)
+        source = safe_base / "data"
+        source.mkdir()
+        evil_dest = safe_base / ".." / "evil.tar.gz"
+
+        with pytest.raises(ValueError, match="outside the authorized base path"):
+            await fs.compress(source, evil_dest)
+
     async def test_allows_path_inside_base(
         self,
         tmp_path: Path,

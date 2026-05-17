@@ -519,6 +519,36 @@ class TestExecuteBackupErrors:
             await use_case.execute(dto)
 
     @pytest.mark.asyncio
+    async def test_rejects_malicious_cluster_uri_hash(
+        self,
+        job_repo: _FakeJobRepo,
+        backup_engine: _FakeBackupEngine,
+        mongo_metadata: _FakeMongoMetadata,
+        audit_service: AuditService,
+        notifier: _FakeNotifier,
+        retention_manager: _FakeRetentionManager,
+        fs_utils: _FakeFsUtils,
+    ) -> None:
+        job = BackupJob.create_full("job-malicious", 1, "../etc/passwd")
+        job.mark_queued()
+        await job_repo.save(job)
+
+        use_case = ExecuteBackupUseCase(
+            job_repository=job_repo,
+            backup_engine=backup_engine,
+            mongo_metadata=mongo_metadata,
+            audit_service=audit_service,
+            notifier=notifier,
+            retention_manager=retention_manager,
+            fs_utils=fs_utils,
+            backup_base_path=Path("/backups"),
+        )
+        dto = ExecuteBackupDto(job_id=job.id)
+
+        with pytest.raises(BackupEngineError, match="Invalid cluster_uri_hash"):
+            await use_case.execute(dto)
+
+    @pytest.mark.asyncio
     async def test_notification_failure_does_not_fail_backup(
         self,
         job_repo: _FakeJobRepo,
