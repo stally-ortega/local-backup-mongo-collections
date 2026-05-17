@@ -34,6 +34,15 @@ if ! command -v redis-server &> /dev/null; then
     sudo systemctl start redis-server
 fi
 
+# Harden Redis
+echo "Applying basic Redis hardening..."
+sudo sed -i 's/^#\?bind .*/bind 127.0.0.1/' /etc/redis/redis.conf
+sudo sed -i 's/^#\?protected-mode .*/protected-mode yes/' /etc/redis/redis.conf
+if ! grep -q '^requirepass' /etc/redis/redis.conf; then
+    echo "WARNING: remember to set 'requirepass' in /etc/redis/redis.conf manually."
+fi
+sudo systemctl restart redis-server
+
 # Install MongoDB Database Tools
 echo "Please ensure MongoDB Database Tools (mongodump) are installed."
 echo "See: https://www.mongodb.com/docs/database-tools/installation/"

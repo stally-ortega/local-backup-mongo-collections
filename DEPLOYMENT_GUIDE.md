@@ -133,6 +133,33 @@ sudo apt update
 sudo apt install -y python3.10 python3.10-venv python3-pip redis-server git
 ```
 
+#### 3.1.1 Hardening de Redis
+
+Edita `/etc/redis/redis.conf` y aplica como mínimo estas medidas:
+
+```bash
+# Solo escuchar en loopback (evita exposición externa)
+bind 127.0.0.1
+
+# Modo protegido activo
+protected-mode yes
+
+# Autenticación obligatoria (genera una contraseña fuerte)
+requirepass <TU_PASSWORD_REDIS>
+```
+
+Reinicia Redis:
+
+```bash
+sudo systemctl restart redis-server
+```
+
+> **Nota:** actualiza `MONGO_OPS_REDIS_URL` en `.env` para incluir la contraseña:
+> `redis://:<TU_PASSWORD_REDIS>@localhost:6379/0`
+>
+> Para producción expuesta a internet, usa **TLS** (`rediss://`) y un túnel VPN o
+> instancia gestionada (ElastiCache, Redis Cloud) con encriptación en tránsito.
+
 Instala MongoDB Database Tools:
 ```bash
 # Descarga desde https://www.mongodb.com/docs/database-tools/installation/
