@@ -9,6 +9,7 @@ from datetime import timedelta
 
 import rq
 from rq.job import Job as RQJob
+from rq.serializers import JSONSerializer
 
 from app.application.ports.ports import IJobQueue
 from app.domain.value_objects.enums import JobStatus
@@ -55,6 +56,7 @@ class RQJobQueue(IJobQueue):
         self._queue = rq.Queue(
             name=queue_name,
             connection=redis_connection.client,
+            serializer=JSONSerializer,
         )
 
     # ------------------------------------------------------------------

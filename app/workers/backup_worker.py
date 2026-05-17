@@ -208,6 +208,7 @@ if __name__ == "__main__":
     from pathlib import Path
 
     import redis as sync_redis
+    from rq.serializers import JSONSerializer
 
     from app.infrastructure.logging.structured_logger import configure_logging
 
@@ -222,5 +223,6 @@ if __name__ == "__main__":
         queues=["default"],
         connection=redis_client,
         name="mongo_ops_backup_worker",
+        serializer=JSONSerializer,
     )
     worker.work(with_scheduler=True)
