@@ -4,7 +4,7 @@ Maps between :class:`~app.domain.entities.user.User` (domain entity) and
 :class:`~app.infrastructure.persistence.models.user.UserORM` (SQLAlchemy model).
 """
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities.user import User
@@ -39,10 +39,19 @@ class SQLUserRepository(IUserRepository):
         orm = result.scalar_one_or_none()
         return self._to_entity(orm) if orm else None
 
-    async def list_all(self) -> list[User]:
-        """Return every registered user ordered by creation time."""
-        result = await self._session.execute(select(UserORM).order_by(UserORM.created_at))
+    async def list_all(self, page: int = 1, page_size: int = 50) -> list[User]:
+        """Return a paginated slice of registered users ordered by creation time."""
+        offset = (page - 1) * page_size
+        result = await self._session.execute(
+            select(UserORM).order_by(UserORM.created_at).limit(page_size).offset(offset)
+        )
         return [self._to_entity(row) for row in result.scalars().all()]
+
+    async def count_all(self) -> int:
+        """Return the total number of registered users."""
+        result = await self._session.execute(select(func.count()).select_from(UserORM))
+        count = result.scalar()
+        return count if count is not None else 0
 
     async def save(self, user: User) -> None:
         """Persist *user*, updating an existing row when the Telegram ID already exists."""

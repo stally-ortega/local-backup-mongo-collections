@@ -21,8 +21,11 @@ class _FakeUserRepo:
     async def get_by_telegram_id(self, telegram_id: int) -> User | None:
         return User(telegram_id=telegram_id, role=UserRole.ADMIN)
 
-    async def list_all(self) -> list[User]:
+    async def list_all(self, page: int = 1, page_size: int = 50) -> list[User]:
         return []
+
+    async def count_all(self) -> int:
+        return 0
 
     async def save(self, user: User) -> None:
         pass

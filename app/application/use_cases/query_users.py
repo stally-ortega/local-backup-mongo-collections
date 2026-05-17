@@ -29,12 +29,12 @@ class QueryUsersUseCase:
         self._audit_service = audit_service
 
     async def execute(self, dto: QueryUsersDto) -> QueryUsersResult:
-        """Return every registered user ordered by creation time."""
-        users = await self._user_repository.list_all()
-
-        # Manual pagination because list_all returns the full set.
-        offset = (dto.page - 1) * dto.page_size
-        paginated = users[offset : offset + dto.page_size]
+        """Return a paginated slice of registered users ordered by creation time."""
+        users = await self._user_repository.list_all(
+            page=dto.page,
+            page_size=dto.page_size,
+        )
+        total = await self._user_repository.count_all()
 
         await self._audit_service.log_action(
             action="LIST_USERS",
@@ -42,12 +42,12 @@ class QueryUsersUseCase:
             topic=dto.topic,
             command=dto.command,
             result="SUCCESS",
-            context={"page": dto.page, "page_size": dto.page_size, "count": len(paginated)},
+            context={"page": dto.page, "page_size": dto.page_size, "count": len(users)},
         )
 
         return QueryUsersResult(
-            users=paginated,
+            users=users,
             page=dto.page,
             page_size=dto.page_size,
-            total=len(users),
+            total=total,
         )

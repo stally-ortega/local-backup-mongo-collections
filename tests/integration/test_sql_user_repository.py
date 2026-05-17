@@ -111,6 +111,54 @@ class TestSQLUserRepositoryListAll:
         assert users[0].telegram_id == 1
         assert users[1].telegram_id == 2
 
+    @pytest.mark.asyncio
+    async def test_paginates_users(
+        self,
+        repo: SQLUserRepository,
+        db_session: AsyncSession,
+    ) -> None:
+        await repo.save(_make_user(telegram_id=1, username="first"))
+        await repo.save(_make_user(telegram_id=2, username="second"))
+        await repo.save(_make_user(telegram_id=3, username="third"))
+        await db_session.commit()
+
+        page1 = await repo.list_all(page=1, page_size=2)
+        assert len(page1) == 2
+        assert page1[0].telegram_id == 1
+        assert page1[1].telegram_id == 2
+
+        page2 = await repo.list_all(page=2, page_size=2)
+        assert len(page2) == 1
+        assert page2[0].telegram_id == 3
+
+
+# ---------------------------------------------------------------------------
+# count_all
+# ---------------------------------------------------------------------------
+
+
+class TestSQLUserRepositoryCountAll:
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_empty(
+        self,
+        repo: SQLUserRepository,
+    ) -> None:
+        count = await repo.count_all()
+        assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_returns_total_users(
+        self,
+        repo: SQLUserRepository,
+        db_session: AsyncSession,
+    ) -> None:
+        await repo.save(_make_user(telegram_id=1))
+        await repo.save(_make_user(telegram_id=2))
+        await db_session.commit()
+
+        count = await repo.count_all()
+        assert count == 2
+
 
 # ---------------------------------------------------------------------------
 # save

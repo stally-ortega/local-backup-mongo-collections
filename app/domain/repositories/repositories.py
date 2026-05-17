@@ -20,8 +20,12 @@ class IUserRepository(Protocol):
         """Fetch a user by their Telegram ID."""
         ...
 
-    async def list_all(self) -> list[User]:
-        """Return every registered user."""
+    async def list_all(self, page: int = 1, page_size: int = 50) -> list[User]:
+        """Return a paginated slice of registered users ordered by creation time."""
+        ...
+
+    async def count_all(self) -> int:
+        """Return the total number of registered users."""
         ...
 
     async def save(self, user: User) -> None:
