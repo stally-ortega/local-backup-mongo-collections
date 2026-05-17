@@ -11,10 +11,8 @@ backups.
 """
 
 import asyncio
-import html
 import logging
 import signal
-import traceback
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
@@ -31,7 +29,6 @@ if TYPE_CHECKING:
     from app.domain.repositories.repositories import IAuditRepository, IJobRepository
 from app.infrastructure.filesystem.aio_fs_utils import AioFsUtils
 from app.infrastructure.logging import clear_correlation_id, set_correlation_id
-from app.infrastructure.logging.sanitizer import sanitize_traceback
 from app.infrastructure.mongo.mongo_connection import MongoConnection
 from app.infrastructure.mongo.mongo_metadata_adapter import MongoMetadataAdapter
 from app.infrastructure.notifier.telegram_notifier import TelegramNotifier
@@ -119,7 +116,7 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
                 dto = ExecuteBackupDto(**(payload or {}), job_id=job_id)
                 try:
                     await use_case.execute(dto, cancel_check=_cancel_check)
-                except Exception as exc:
+                except Exception:
                     # A. Update the original status message so the UI is not left hanging.
                     if dto.chat_id is not None and dto.status_message_id is not None:
                         with suppress(Exception):
@@ -129,18 +126,16 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
                                 text="❌ FAILED: Error interno en el worker",
                             )
 
-                    # B. Send detailed traceback to the execution-errors topic.
-                    error_details = "".join(
-                        traceback.format_exception(type(exc), exc, exc.__traceback__)
-                    )
-                    safe_error = html.escape(sanitize_traceback(error_details))[:3800]
+                    # B. Notify execution-errors topic with a generic message.
+                    # Full traceback is logged internally via correlation_id.
+                    logger.exception("Backup execution failed for job %s", job_id)
                     try:
                         await notifier.send_message(
                             chat_id=int(config.telegram_chat_id),
                             text=(
-                                f"🚨 <b>Fatal Worker Error</b>\n"
+                                f"🚨 <b>Worker Error</b>\n"
                                 f"Job: <code>{job_id}</code>\n"
-                                f"<pre>{safe_error}</pre>"
+                                f"Consulta los logs (correlation_id={job_id}) para detalles."
                             ),
                             topic_id=config.topic_execution_errors,
                         )
