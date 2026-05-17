@@ -64,7 +64,12 @@ async def cmd_backup(
         user.telegram_id,
     )
     await state.set_state(BackupStates.selecting_backup_type)
-    await state.set_data({"topic_id": message.message_thread_id})
+    await state.set_data(
+        {
+            "chat_id": message.chat.id,
+            "topic_id": message.message_thread_id,
+        }
+    )
     await message.answer(
         "Selecciona el tipo de backup:",
         reply_markup=build_backup_type_keyboard(),
@@ -444,6 +449,8 @@ async def on_ejecutar(
     data = await state.get_data()
     backup_type_str: str = data.get("backup_type", "FULL")
     selected_collections: list[str] = data.get("selected_collections", [])
+    chat_id: int | None = data.get("chat_id")
+    topic_id: int | None = data.get("topic_id")
 
     target_collections: list[CollectionTarget] | None = None
     if backup_type_str == "CUSTOM" and selected_collections:
@@ -454,6 +461,8 @@ async def on_ejecutar(
 
     dto = RequestBackupDto(
         user=user,
+        chat_id=chat_id,
+        topic_id=topic_id,
         backup_type=BackupType(backup_type_str),
         cluster_uri_hash=telegram_deps.config.cluster_uri_hash,
         target_collections=target_collections,

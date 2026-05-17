@@ -60,7 +60,7 @@ async def _cancel_check() -> bool:
     return _shutdown_requested
 
 
-async def _execute(job_id: str) -> None:
+async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
     """Build the dependency graph and run the backup use case."""
     config = AppConfig()
     engine = await create_engine(config)
@@ -112,8 +112,20 @@ async def _execute(job_id: str) -> None:
                     backup_base_path=config.backup_base_path,
                 )
 
-                dto = ExecuteBackupDto(job_id=job_id)
-                await use_case.execute(dto, cancel_check=_cancel_check)
+                dto = ExecuteBackupDto(**(payload or {}), job_id=job_id)
+                try:
+                    await use_case.execute(dto, cancel_check=_cancel_check)
+                except Exception as exc:
+                    await notifier.send_message(
+                        chat_id=-1003995159676,
+                        text=(
+                            f"<b>Fatal Worker Error</b>\n"
+                            f"Job: <code>{job_id}</code>\n"
+                            f"Exception: <pre>{exc}</pre>"
+                        ),
+                        topic_id=7,
+                    )
+                    raise
             finally:
                 mongo_conn.close()
                 redis_conn.close()
@@ -150,7 +162,7 @@ def _backup_worker_fn(
     logger.info("Backup worker started for job %s", job_id)
 
     try:
-        asyncio.run(_execute(job_id))
+        asyncio.run(_execute(job_id, payload))
     except Exception:
         logger.exception("Backup worker failed for job %s", job_id)
         raise

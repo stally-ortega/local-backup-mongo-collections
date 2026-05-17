@@ -3,7 +3,7 @@
 Uses a ``fakeredis``-style mock so that no real Redis server is required.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -50,12 +50,7 @@ def mock_redis_client() -> MagicMock:
 
 @pytest.fixture
 def repo(mock_redis_client: MagicMock) -> RedisRateLimitRepository:
-    with patch(
-        "app.infrastructure.queue.redis_rate_limit_repository.RedisConnection"
-    ) as mock_conn_cls:
-        mock_conn = mock_conn_cls.return_value
-        mock_conn.client = mock_redis_client
-        return RedisRateLimitRepository(mock_conn)
+    return RedisRateLimitRepository(mock_redis_client)
 
 
 class TestCheckLimit:

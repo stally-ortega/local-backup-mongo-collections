@@ -8,6 +8,8 @@ import asyncio
 import logging
 from pathlib import Path
 
+import redis.asyncio as aioredis
+
 from app.application.services.permission_service import PermissionService
 from app.config import AppConfig
 from app.infrastructure.logging.structured_logger import configure_logging
@@ -17,7 +19,6 @@ from app.infrastructure.persistence.database import (
     dispose_engine,
     init_database,
 )
-from app.infrastructure.queue.redis_connection import RedisConnection
 from app.telegram.bot import BotBuilder
 from app.telegram.middlewares import MiddlewareDependencies
 
@@ -35,14 +36,13 @@ async def main() -> None:
     await init_database(engine)
     session_factory = await create_session_factory(engine)
 
-    redis_conn = RedisConnection.from_config(config)
-    redis_conn.connect()
+    redis_async_client = aioredis.Redis.from_url(config.redis_url)
 
     middleware_deps = MiddlewareDependencies(
         config=config,
         session_factory=session_factory,
         permission_service=PermissionService(),
-        redis_connection=redis_conn,
+        redis_async_client=redis_async_client,
     )
 
     builder = BotBuilder(config, middleware_deps)
@@ -55,7 +55,7 @@ async def main() -> None:
         logger.info("Shutting down...")
         await builder.shutdown(bot, dp)
         await dispose_engine(engine)
-        redis_conn.close()
+        await redis_async_client.close()
         logger.info("Shutdown complete")
 
 

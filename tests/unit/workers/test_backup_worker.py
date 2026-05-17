@@ -96,10 +96,12 @@ class TestExecute:
     @patch.object(worker_module, "MongodumpBackupEngine")
     @patch.object(worker_module, "MongoMetadataAdapter")
     @patch.object(worker_module, "ExecuteBackupUseCase")
+    @patch.object(worker_module, "AiogramBot")
     @patch.object(worker_module, "AppConfig")
     async def test_wires_dependencies_and_calls_use_case(
         self,
         mock_config_cls: MagicMock,
+        mock_aiogram_bot_cls: MagicMock,
         mock_use_case_cls: MagicMock,
         _mock_meta_adapter_cls: MagicMock,
         _mock_engine_cls: MagicMock,
@@ -130,6 +132,13 @@ class TestExecute:
         mock_factory.return_value.__aenter__.return_value.set_result(mock_session)
         mock_factory.return_value.__aexit__ = MagicMock(return_value=asyncio.Future())
         mock_factory.return_value.__aexit__.return_value.set_result(None)
+
+        mock_bot = MagicMock()
+        mock_bot.start = MagicMock()
+        mock_bot.shutdown = MagicMock(return_value=asyncio.Future())
+        mock_bot.shutdown.return_value.set_result(None)
+        mock_bot.bot = MagicMock()
+        mock_aiogram_bot_cls.from_config.return_value = mock_bot
 
         mock_use_case = MagicMock()
         mock_use_case.execute = MagicMock(return_value=asyncio.Future())

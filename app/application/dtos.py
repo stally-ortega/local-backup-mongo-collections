@@ -17,6 +17,8 @@ class CreateJobRequest(BaseModel):
     """Payload required to instantiate a new :class:`~app.domain.entities.backup_job.BackupJob`."""
 
     requester_telegram_id: int = Field(..., gt=0)
+    chat_id: int | None = None
+    topic_id: int | None = None
     backup_type: BackupType
     cluster_uri_hash: str = Field(..., min_length=1)
     target_collections: list[CollectionTarget] | None = None
@@ -26,6 +28,8 @@ class RequestBackupDto(BaseModel):
     """Input payload for the backup request use case."""
 
     user: User
+    chat_id: int | None = None
+    topic_id: int | None = None
     backup_type: BackupType
     cluster_uri_hash: str = Field(..., min_length=1)
     target_collections: list[CollectionTarget] | None = None
@@ -41,9 +45,20 @@ class RequestBackupResult(BaseModel):
 
 
 class ExecuteBackupDto(BaseModel):
-    """Input payload for the backup execution use case."""
+    """Input payload for the backup execution use case.
+
+    When the job row is not yet visible in SQLite (e.g. Docker-for-Windows
+    replication lag), the optional fields below let the worker reconstruct
+    the job in memory directly from the DTO so execution can continue.
+    """
 
     job_id: str = Field(..., min_length=1)
+    requester_telegram_id: int | None = None
+    chat_id: int | None = None
+    topic_id: int | None = None
+    backup_type: BackupType | None = None
+    cluster_uri_hash: str | None = None
+    target_collections: list[CollectionTarget] | None = None
     correlation_id: str | None = None
 
 

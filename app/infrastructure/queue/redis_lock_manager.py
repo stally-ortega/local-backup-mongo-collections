@@ -7,7 +7,7 @@ for safe check-and-release to avoid dropping locks owned by other processes.
 import logging
 import uuid
 
-from app.infrastructure.queue.redis_connection import RedisConnection
+import redis.asyncio as aioredis
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +26,12 @@ class RedisLockManager:
 
     Parameters
     ----------
-    redis_connection:
-        An open :class:`~app.infrastructure.queue.redis_connection.RedisConnection`.
+    redis_client:
+        An active ``redis.asyncio.Redis`` client.
     """
 
-    def __init__(self, redis_connection: RedisConnection) -> None:
-        self._redis = redis_connection
+    def __init__(self, redis_client: aioredis.Redis) -> None:
+        self._client = redis_client
 
     async def acquire(
         self,
@@ -48,7 +48,7 @@ class RedisLockManager:
         token = str(uuid.uuid4())
         # ``nx=True`` → set only if key does not exist.
         # ``ex=ttl_seconds`` → auto-expire to avoid dead locks.
-        acquired = self._redis.client.set(resource, token, nx=True, ex=ttl_seconds)
+        acquired = await self._client.set(resource, token, nx=True, ex=ttl_seconds)
         if acquired is True:
             logger.debug("Lock acquired %s (token=%s)", resource, token)
             return token
@@ -63,7 +63,7 @@ class RedisLockManager:
         ``True`` when the lock existed and the token matched, ``False`` otherwise.
         """
         try:
-            result = self._redis.client.eval(_RELEASE_SCRIPT, 1, resource, token)
+            result = await self._client.eval(_RELEASE_SCRIPT, 1, resource, token)  # type: ignore[misc]
             released = bool(result)
             if released:
                 logger.debug("Lock released %s", resource)
@@ -80,7 +80,7 @@ class RedisLockManager:
     async def is_locked(self, resource: str) -> bool:
         """Return ``True`` when *resource* currently holds a lock."""
         try:
-            return bool(self._redis.client.exists(resource))
+            return bool(await self._client.exists(resource))
         except Exception as exc:
             logger.warning("Lock check error %s: %s", resource, exc)
             return False

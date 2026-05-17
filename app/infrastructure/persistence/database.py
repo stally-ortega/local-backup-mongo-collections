@@ -35,11 +35,17 @@ async def create_engine(config: AppConfig) -> AsyncEngine:
     Returns:
         A SQLAlchemy async engine ready for connection pooling.
     """
-    return create_async_engine(
-        str(config.database_url),
+    url = str(config.database_url)
+    is_sqlite = url.startswith("sqlite")
+
+    engine = create_async_engine(
+        url,
         echo=config.log_level == "DEBUG",
         future=True,
+        connect_args={"timeout": 15} if is_sqlite else {},
     )
+
+    return engine
 
 
 async def create_session_factory(

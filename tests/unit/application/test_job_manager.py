@@ -44,6 +44,12 @@ class _FakeJobRepo:
     async def save(self, job: BackupJob) -> None:
         self._jobs[job.id] = job
 
+    async def commit(self) -> None:
+        pass
+
+    async def clear_session_cache(self) -> None:
+        pass
+
     async def update_status(self, job_id: str, status: JobStatus) -> BackupJob | None:
         job = self._jobs.get(job_id)
         if job:

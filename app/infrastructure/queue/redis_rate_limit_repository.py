@@ -13,8 +13,9 @@ not bloat Redis memory.
 import time
 import uuid
 
+import redis.asyncio as aioredis
+
 from app.domain.repositories.repositories import IRateLimitRepository
-from app.infrastructure.queue.redis_connection import RedisConnection
 
 
 class RedisRateLimitRepository(IRateLimitRepository):
@@ -22,12 +23,12 @@ class RedisRateLimitRepository(IRateLimitRepository):
 
     Parameters
     ----------
-    redis_connection:
-        An open :class:`~app.infrastructure.queue.redis_connection.RedisConnection`.
+    redis_client:
+        An active ``redis.asyncio.Redis`` client.
     """
 
-    def __init__(self, redis_connection: RedisConnection) -> None:
-        self._redis = redis_connection
+    def __init__(self, redis_client: aioredis.Redis) -> None:
+        self._client = redis_client
 
     @staticmethod
     def _key(telegram_id: int, action: str) -> str:
@@ -45,10 +46,9 @@ class RedisRateLimitRepository(IRateLimitRepository):
         now_ms = int(time.time() * 1000)
         window_start_ms = now_ms - (window_seconds * 1000)
 
-        client = self._redis.client
         # Remove entries older than the sliding window.
-        await client.zremrangebyscore(key, 0, window_start_ms)
-        current = int(await client.zcard(key))
+        await self._client.zremrangebyscore(key, 0, window_start_ms)
+        current = int(await self._client.zcard(key))
         return current < max_allowed
 
     async def increment(
@@ -65,18 +65,17 @@ class RedisRateLimitRepository(IRateLimitRepository):
         now_ms = int(time.time() * 1000)
         window_start_ms = now_ms - (window_seconds * 1000)
 
-        client = self._redis.client
         # Trim old entries before counting.
-        await client.zremrangebyscore(key, 0, window_start_ms)
+        await self._client.zremrangebyscore(key, 0, window_start_ms)
         # Add current request with a unique member so that collisions within
         # the same millisecond do not overwrite previous entries.
         unique_member = f"{now_ms}:{uuid.uuid4().hex[:8]}"
-        await client.zadd(key, {unique_member: now_ms})
+        await self._client.zadd(key, {unique_member: now_ms})
         # Ensure the key expires after the full window has passed.
-        await client.expire(key, window_seconds)
+        await self._client.expire(key, window_seconds)
 
-        return int(await client.zcard(key))
+        return int(await self._client.zcard(key))
 
     async def reset(self, telegram_id: int, action: str) -> None:
         """Zero out the counter for the given user and action."""
-        await self._redis.client.delete(self._key(telegram_id, action))
+        await self._client.delete(self._key(telegram_id, action))

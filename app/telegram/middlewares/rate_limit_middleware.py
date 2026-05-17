@@ -10,6 +10,7 @@ as a fallback.
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+import redis.asyncio as aioredis
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -18,7 +19,6 @@ from app.config import AppConfig
 from app.domain.entities.user import User
 from app.infrastructure.logging.structured_logger import get_logger
 from app.infrastructure.persistence.sql_rate_limit_repository import SQLRateLimitRepository
-from app.infrastructure.queue.redis_connection import RedisConnection
 from app.infrastructure.queue.redis_rate_limit_repository import RedisRateLimitRepository
 from app.telegram.middlewares._utils import extract_command, extract_context, safe_send_message
 
@@ -29,12 +29,12 @@ class RateLimitMiddleware(BaseMiddleware):
     Parameters
     ----------
     session_factory:
-        SQLAlchemy async session maker.  Required when *redis_connection* is
+        SQLAlchemy async session maker.  Required when *redis_async_client* is
         ``None`` so that the SQL fallback can be used.
     config:
         Application settings containing rate-limit thresholds.
-    redis_connection:
-        Optional Redis connection.  When provided, rate-limit counters are
+    redis_async_client:
+        Optional async Redis client.  When provided, rate-limit counters are
         stored in Redis with automatic TTL expiration.
     """
 
@@ -43,11 +43,11 @@ class RateLimitMiddleware(BaseMiddleware):
         *,
         session_factory: async_sessionmaker[AsyncSession] | None = None,
         config: AppConfig | None = None,
-        redis_connection: RedisConnection | None = None,
+        redis_async_client: aioredis.Redis | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._config = config
-        self._redis_connection = redis_connection
+        self._redis_async_client = redis_async_client
         self._logger = get_logger(__name__)
 
     async def __call__(
@@ -68,7 +68,7 @@ class RateLimitMiddleware(BaseMiddleware):
         action = command or "GENERIC"
 
         # Prefer Redis when available; otherwise fall back to SQL.
-        if self._redis_connection is not None:
+        if self._redis_async_client is not None:
             allowed = await self._check_with_redis(user.telegram_id, action)
             if not allowed:
                 ctx = extract_context(event)
@@ -105,9 +105,9 @@ class RateLimitMiddleware(BaseMiddleware):
         return await handler(event, data)
 
     async def _check_with_redis(self, telegram_id: int, action: str) -> bool:
-        assert self._redis_connection is not None
+        assert self._redis_async_client is not None
         assert self._config is not None
-        repo = RedisRateLimitRepository(self._redis_connection)
+        repo = RedisRateLimitRepository(self._redis_async_client)
         return await repo.check_limit(
             telegram_id,
             action,
@@ -116,9 +116,9 @@ class RateLimitMiddleware(BaseMiddleware):
         )
 
     async def _increment_with_redis(self, telegram_id: int, action: str) -> int:
-        assert self._redis_connection is not None
+        assert self._redis_async_client is not None
         assert self._config is not None
-        repo = RedisRateLimitRepository(self._redis_connection)
+        repo = RedisRateLimitRepository(self._redis_async_client)
         return await repo.increment(
             telegram_id,
             action,

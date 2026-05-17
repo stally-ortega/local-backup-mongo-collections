@@ -87,6 +87,14 @@ class SQLJobRepository(IJobRepository):
             await self._session.flush()
             await self._session.refresh(orm)
 
+    async def commit(self) -> None:
+        """Commit the current transaction so the job is durable on disk."""
+        await self._session.commit()
+
+    async def clear_session_cache(self) -> None:
+        """Rollback the current transaction to discard the identity map."""
+        await self._session.rollback()
+
     async def update_status(self, job_id: str, status: JobStatus) -> BackupJob | None:
         """Update the status of an existing job."""
         orm = await self._session.get(JobORM, job_id)
@@ -183,6 +191,8 @@ class SQLJobRepository(IJobRepository):
         return BackupJob(
             id=orm.id,
             requester_telegram_id=orm.requester_telegram_id,
+            chat_id=orm.chat_id,
+            topic_id=orm.topic_id,
             backup_type=BackupType(orm.backup_type),
             status=JobStatus(orm.status),
             cluster_uri_hash=orm.cluster_uri_hash,
@@ -219,6 +229,8 @@ class SQLJobRepository(IJobRepository):
         return JobORM(
             id=job.id,
             requester_telegram_id=job.requester_telegram_id,
+            chat_id=job.chat_id,
+            topic_id=job.topic_id,
             backup_type=job.backup_type.value,
             status=job.status.value,
             cluster_uri_hash=job.cluster_uri_hash,
@@ -238,6 +250,8 @@ class SQLJobRepository(IJobRepository):
     def _update_orm(orm: JobORM, job: BackupJob) -> None:
         """Refresh an existing ORM row with values from *job*."""
         orm.requester_telegram_id = job.requester_telegram_id
+        orm.chat_id = job.chat_id
+        orm.topic_id = job.topic_id
         orm.backup_type = job.backup_type.value
         orm.status = job.status.value
         orm.cluster_uri_hash = job.cluster_uri_hash

@@ -148,13 +148,18 @@ class RequestBackupUseCase:
             # 5. Create job
             create_req = CreateJobRequest(
                 requester_telegram_id=dto.user.telegram_id,
+                chat_id=dto.chat_id,
+                topic_id=dto.topic_id,
                 backup_type=dto.backup_type,
                 cluster_uri_hash=dto.cluster_uri_hash,
                 target_collections=dto.target_collections,
             )
             job = await self._job_manager.create_job(create_req)
 
-            # 6. Audit the user action
+            # 6. Commit immediately so the worker sees the row in SQLite
+            await self._job_manager.commit()
+
+            # 7. Audit the user action
             await self._audit_service.log_action(
                 action="BACKUP_REQUESTED",
                 user=dto.user,
@@ -163,7 +168,7 @@ class RequestBackupUseCase:
                 result="SUCCESS",
             )
 
-            # 7. Enqueue for execution
+            # 8. Enqueue for execution
             await self._job_manager.enqueue_job(job.id)
 
             # 8. Increment rate-limit counter

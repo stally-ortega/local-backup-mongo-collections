@@ -59,6 +59,8 @@ class JobManager:
                 job_id=job_id,
                 requester_telegram_id=request.requester_telegram_id,
                 cluster_uri_hash=request.cluster_uri_hash,
+                chat_id=request.chat_id,
+                topic_id=request.topic_id,
             )
         else:
             job = BackupJob.create_custom(
@@ -66,10 +68,16 @@ class JobManager:
                 requester_telegram_id=request.requester_telegram_id,
                 cluster_uri_hash=request.cluster_uri_hash,
                 target_collections=request.target_collections or [],
+                chat_id=request.chat_id,
+                topic_id=request.topic_id,
             )
 
         await self._job_repository.save(job)
         return job
+
+    async def commit(self) -> None:
+        """Commit the current transaction so the job is durable on disk."""
+        await self._job_repository.commit()
 
     async def enqueue_job(self, job_id: str) -> str:
         """Queue an existing job for execution and transition it to ``QUEUED``.
@@ -85,7 +93,9 @@ class JobManager:
             )
 
         payload: dict[str, Any] = {
-            "job_id": job_id,
+            "requester_telegram_id": job.requester_telegram_id,
+            "chat_id": job.chat_id,
+            "topic_id": job.topic_id,
             "backup_type": job.backup_type.value,
             "cluster_uri_hash": job.cluster_uri_hash,
         }

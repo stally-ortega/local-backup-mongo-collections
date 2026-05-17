@@ -143,7 +143,7 @@ def build_request_backup_use_case(
         permission_service=deps.permission_service,
         audit_service=audit_svc,
     )
-    lock_manager = RedisLockManager(deps.redis_connection)
+    lock_manager = RedisLockManager(deps.aioredis_client)
     return RequestBackupUseCase(
         permission_service=deps.permission_service,
         rate_limit_repo=rate_limit_repo,
@@ -166,7 +166,7 @@ def build_query_size_use_case(
     audit_repo = SQLAuditRepository(session)
     audit_svc = AuditService(audit_repo)
     size_query_svc = SizeQueryService(deps.mongo_metadata)
-    lock_manager = RedisLockManager(deps.redis_connection)
+    lock_manager = RedisLockManager(deps.aioredis_client)
     return QuerySizeUseCase(
         size_query_service=size_query_svc,
         audit_service=audit_svc,

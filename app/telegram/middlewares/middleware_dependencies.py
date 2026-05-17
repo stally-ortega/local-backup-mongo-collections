@@ -8,12 +8,12 @@ global state.
 
 from dataclasses import dataclass
 
+import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.application.services.audit_service import AuditService
 from app.application.services.permission_service import PermissionService
 from app.config import AppConfig
-from app.infrastructure.queue.redis_connection import RedisConnection
 
 
 @dataclass(frozen=True)
@@ -34,8 +34,8 @@ class MiddlewareDependencies:
     audit_service:
         Optional audit facade.  When absent, middlewares that need auditing
         instantiate one on-the-fly from the session.
-    redis_connection:
-        Optional Redis connection for rate-limiting and distributed locking.
+    redis_async_client:
+        Optional async Redis client for rate-limiting.
         When present, :class:`RateLimitMiddleware` uses
         :class:`~app.infrastructure.queue.redis_rate_limit_repository.RedisRateLimitRepository`
         instead of the SQL fallback.
@@ -45,4 +45,4 @@ class MiddlewareDependencies:
     session_factory: async_sessionmaker[AsyncSession]
     permission_service: PermissionService | None = None
     audit_service: AuditService | None = None
-    redis_connection: RedisConnection | None = None
+    redis_async_client: aioredis.Redis | None = None

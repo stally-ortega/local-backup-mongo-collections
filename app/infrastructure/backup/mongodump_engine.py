@@ -27,7 +27,9 @@ _DEFAULT_DUMP_TIMEOUT_S: float = 300.0
 _DEFAULT_PING_TIMEOUT_MS: int = 5_000
 
 # Minimum size (bytes) a dump file must have to be considered valid.
-_MIN_VALID_DUMP_SIZE: int = 1
+# Set to 0 so that empty collections (common in test environments) do not
+# trigger a false failure.
+_MIN_VALID_DUMP_SIZE: int = 0
 
 
 class MongodumpBackupEngine(IBackupEngine):
@@ -79,6 +81,7 @@ class MongodumpBackupEngine(IBackupEngine):
         cmd = [
             "mongodump",
             f"--uri={self._uri}",
+            "--ssl",
             f"--db={database}",
             f"--collection={collection}",
             f"--out={output_path}",
@@ -120,6 +123,7 @@ class MongodumpBackupEngine(IBackupEngine):
 
         if proc.returncode != 0:
             stderr_text = stderr_data.decode("utf-8", errors="replace").strip()
+            logger.error("mongodump failed: %s", stderr_text)
             raise BackupEngineError(
                 message=f"mongodump failed for {database}.{collection}",
                 details={

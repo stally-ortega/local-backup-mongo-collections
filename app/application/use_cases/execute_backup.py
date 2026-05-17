@@ -5,6 +5,7 @@ execution via the backup engine, progress tracking, cancellation checks,
 retention enforcement, and user notification.
 """
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from datetime import datetime
@@ -58,6 +59,8 @@ class ExecuteBackupUseCase:
 
     _CLUSTER_LOCK_PREFIX: str = "backup:cluster"
     _LOCK_TTL: int = 3600  # 1 hour
+    _MAX_LOOKUP_RETRIES: int = 5
+    _RETRY_BACKOFF_S: float = 0.5
 
     def __init__(
         self,
@@ -106,12 +109,43 @@ class ExecuteBackupUseCase:
         InvalidStateTransitionError
             When the job is in a state that cannot transition to ``RUNNING``.
         """
-        job = await self._job_repository.get_by_id(dto.job_id)
+        job: BackupJob | None = None
+        for attempt in range(1, self._MAX_LOOKUP_RETRIES + 1):
+            job = await self._job_repository.get_by_id(dto.job_id)
+            if job is not None:
+                break
+            if attempt < self._MAX_LOOKUP_RETRIES:
+                await self._job_repository.clear_session_cache()
+                await asyncio.sleep(self._RETRY_BACKOFF_S)
         if job is None:
-            raise JobNotFoundError(
-                message=f"Job {dto.job_id} not found",
-                details={"job_id": dto.job_id},
-            )
+            if (
+                dto.requester_telegram_id is not None
+                and dto.backup_type is not None
+                and dto.cluster_uri_hash is not None
+            ):
+                if dto.backup_type == BackupType.CUSTOM and dto.target_collections:
+                    job = BackupJob.create_custom(
+                        job_id=dto.job_id,
+                        requester_telegram_id=dto.requester_telegram_id,
+                        cluster_uri_hash=dto.cluster_uri_hash,
+                        target_collections=dto.target_collections,
+                        chat_id=dto.chat_id,
+                        topic_id=dto.topic_id,
+                    )
+                else:
+                    job = BackupJob.create_full(
+                        job_id=dto.job_id,
+                        requester_telegram_id=dto.requester_telegram_id,
+                        cluster_uri_hash=dto.cluster_uri_hash,
+                        chat_id=dto.chat_id,
+                        topic_id=dto.topic_id,
+                    )
+                job.mark_queued()
+            else:
+                raise JobNotFoundError(
+                    message=f"Job {dto.job_id} not found after {self._MAX_LOOKUP_RETRIES} retries",
+                    details={"job_id": dto.job_id},
+                )
 
         # Acquire cluster-scoped lock before transitioning to RUNNING.
         lock_token: str | None = None
@@ -325,7 +359,7 @@ class ExecuteBackupUseCase:
         total: int,
         bytes_processed: int,
     ) -> None:
-        """Send a best-effort completion notification to the job requester.
+        """Send a best-effort completion notification to the origin topic.
 
         Notification failures are intentionally **not** raised so that a
         transient Telegram outage does not flip a successfully backed-up job
@@ -341,10 +375,12 @@ class ExecuteBackupUseCase:
         if bytes_processed:
             summary += f"\nTotal size: {bytes_processed} bytes."
 
+        chat_id = job.chat_id or job.requester_telegram_id
         with suppress(Exception):
             await self._notifier.send_message(
-                chat_id=job.requester_telegram_id,
+                chat_id=chat_id,
                 text=summary,
+                topic_id=job.topic_id,
             )
 
     async def _apply_retention(self, status: JobStatus) -> None:
