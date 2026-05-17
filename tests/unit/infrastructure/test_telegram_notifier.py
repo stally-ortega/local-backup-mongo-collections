@@ -48,7 +48,7 @@ class TestSendMessage:
 
         mock_bot.send_message.assert_awaited_once_with(
             chat_id=-100,
-            text="<b>Hello</b>",
+            text="&lt;b&gt;Hello&lt;/b&gt;",
             message_thread_id=5,
         )
 
@@ -78,6 +78,22 @@ class TestSendMessage:
 
         assert mock_bot.send_message.await_count == 3
 
+    async def test_escapes_html_in_text(
+        self,
+        notifier: TelegramNotifier,
+        mock_bot: MagicMock,
+    ) -> None:
+        await notifier.send_message(
+            chat_id=1,
+            text="<script>alert('xss')</script>",
+        )
+
+        mock_bot.send_message.assert_awaited_once_with(
+            chat_id=1,
+            text="&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;",
+            message_thread_id=None,
+        )
+
 
 class TestEditMessage:
     async def test_calls_edit_message_text(
@@ -95,6 +111,23 @@ class TestEditMessage:
             chat_id=-100,
             message_id=42,
             text="Updated",
+        )
+
+    async def test_escapes_html_in_edit(
+        self,
+        notifier: TelegramNotifier,
+        mock_bot: MagicMock,
+    ) -> None:
+        await notifier.edit_message(
+            chat_id=-100,
+            message_id=42,
+            text="<a href='http://evil.com'>click</a>",
+        )
+
+        mock_bot.edit_message_text.assert_awaited_once_with(
+            chat_id=-100,
+            message_id=42,
+            text="&lt;a href=&#x27;http://evil.com&#x27;&gt;click&lt;/a&gt;",
         )
 
 
@@ -120,6 +153,27 @@ class TestSendDocument:
                 document=mock_fs.return_value,
                 caption="Archive",
                 message_thread_id=3,
+            )
+
+    async def test_escapes_html_in_caption(
+        self,
+        notifier: TelegramNotifier,
+        mock_bot: MagicMock,
+    ) -> None:
+        with patch("app.infrastructure.notifier.telegram_notifier.FSInputFile") as mock_fs:
+            mock_fs.return_value = MagicMock()
+
+            await notifier.send_document(
+                chat_id=-100,
+                file_path=Path("/tmp/backup.tar.gz"),
+                caption="<script>pwn</script>",
+            )
+
+            mock_bot.send_document.assert_awaited_once_with(
+                chat_id=-100,
+                document=mock_fs.return_value,
+                caption="&lt;script&gt;pwn&lt;/script&gt;",
+                message_thread_id=None,
             )
 
 

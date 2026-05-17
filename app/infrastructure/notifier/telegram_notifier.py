@@ -9,6 +9,7 @@ Features:
 """
 
 import asyncio
+import html
 import logging
 from collections import deque
 from collections.abc import Callable, Coroutine
@@ -109,10 +110,12 @@ class TelegramNotifier:
         topic_id: int | None = None,
         correlation_id: str | None = None,
     ) -> None:
+        safe_text = html.escape(text)
+
         async def _call() -> None:
             await self._bot.bot.send_message(
                 chat_id=chat_id,
-                text=text,
+                text=safe_text,
                 message_thread_id=topic_id,
             )
 
@@ -126,11 +129,13 @@ class TelegramNotifier:
         *,
         correlation_id: str | None = None,
     ) -> None:
+        safe_text = html.escape(text)
+
         async def _call() -> None:
             await self._bot.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=message_id,
-                text=text,
+                text=safe_text,
             )
 
         await self._execute_with_retry("edit_message", _call)
@@ -144,11 +149,13 @@ class TelegramNotifier:
         topic_id: int | None = None,
         correlation_id: str | None = None,
     ) -> None:
+        safe_caption = html.escape(caption) if caption is not None else None
+
         async def _call() -> None:
             await self._bot.bot.send_document(
                 chat_id=chat_id,
                 document=FSInputFile(str(file_path)),
-                caption=caption,
+                caption=safe_caption,
                 message_thread_id=topic_id,
             )
 

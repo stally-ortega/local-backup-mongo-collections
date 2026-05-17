@@ -140,8 +140,8 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
                         await notifier.send_message(
                             chat_id=int(config.telegram_chat_id),
                             text=(
-                                f"🚨 <b>Worker Error</b>\n"
-                                f"Job: <code>{job_id}</code>\n"
+                                f"🚨 Worker Error\n"
+                                f"Job: {job_id}\n"
                                 f"Consulta los logs (correlation_id={job_id}) para detalles."
                             ),
                             topic_id=config.topic_execution_errors,
