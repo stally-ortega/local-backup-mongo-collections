@@ -70,6 +70,47 @@ class MongodumpBackupEngine(IBackupEngine):
         return found
 
     # ------------------------------------------------------------------
+    # Name validation
+    # ------------------------------------------------------------------
+
+    _FORBIDDEN_CHARS: str = '/\\."*<>:|?$\x00'
+    _MAX_DB_NAME_LENGTH: int = 64
+    _MAX_COLLECTION_NAME_LENGTH: int = 255
+
+    @classmethod
+    def _validate_name(cls, name: str, kind: str) -> None:
+        """Validate a MongoDB database or collection name.
+
+        Raises
+        ------
+        BackupEngineError
+            When the name violates MongoDB naming rules.
+        """
+        if not name:
+            raise BackupEngineError(
+                message=f"{kind} name cannot be empty",
+                details={"kind": kind, "name": name},
+            )
+        if len(name.encode("utf-8")) > (
+            cls._MAX_DB_NAME_LENGTH if kind == "database" else cls._MAX_COLLECTION_NAME_LENGTH
+        ):
+            raise BackupEngineError(
+                message=f"{kind} name exceeds maximum length",
+                details={"kind": kind, "name": name, "max_bytes": cls._MAX_DB_NAME_LENGTH},
+            )
+        for char in cls._FORBIDDEN_CHARS:
+            if char in name:
+                raise BackupEngineError(
+                    message=f"{kind} name contains forbidden character",
+                    details={"kind": kind, "name": name, "forbidden_char": char},
+                )
+        if name.lower().startswith("system."):
+            raise BackupEngineError(
+                message=f"{kind} name cannot start with 'system.'",
+                details={"kind": kind, "name": name},
+            )
+
+    # ------------------------------------------------------------------
     # IBackupEngine implementation
     # ------------------------------------------------------------------
 
@@ -98,6 +139,9 @@ class MongodumpBackupEngine(IBackupEngine):
                 message="mongodump binary not found",
                 details={"configured_path": self._mongodump_path},
             )
+
+        self._validate_name(database, "database")
+        self._validate_name(collection, "collection")
 
         cmd = [
             binary,

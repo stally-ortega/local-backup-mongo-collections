@@ -211,6 +211,119 @@ class TestBackupCollectionInjection:
         assert len(cmd) == 6
 
 
+class TestValidateNames:
+    async def test_empty_database_name_raises(
+        self, engine: MongodumpBackupEngine, tmp_path: Path
+    ) -> None:
+        with pytest.raises(BackupEngineError, match="database name cannot be empty"):
+            await engine.backup_collection("", "mycol", tmp_path)
+
+    async def test_empty_collection_name_raises(
+        self, engine: MongodumpBackupEngine, tmp_path: Path
+    ) -> None:
+        with pytest.raises(BackupEngineError, match="collection name cannot be empty"):
+            await engine.backup_collection("mydb", "", tmp_path)
+
+    @pytest.mark.parametrize(
+        "bad_name",
+        [
+            "my/db",
+            "my\\db",
+            'my"db',
+            "my*db",
+            "my<db",
+            "my>db",
+            "my:db",
+            "my|db",
+            "my?db",
+            "my$db",
+            "my.db",
+        ],
+    )
+    async def test_database_name_with_forbidden_char_raises(
+        self, engine: MongodumpBackupEngine, tmp_path: Path, bad_name: str
+    ) -> None:
+        with pytest.raises(BackupEngineError, match="forbidden character"):
+            await engine.backup_collection(bad_name, "mycol", tmp_path)
+
+    @pytest.mark.parametrize(
+        "bad_name",
+        [
+            "my/col",
+            "my\\col",
+            'my"col',
+            "my*col",
+            "my<col",
+            "my>col",
+            "my:col",
+            "my|col",
+            "my?col",
+            "my$col",
+        ],
+    )
+    async def test_collection_name_with_forbidden_char_raises(
+        self, engine: MongodumpBackupEngine, tmp_path: Path, bad_name: str
+    ) -> None:
+        with pytest.raises(BackupEngineError, match="forbidden character"):
+            await engine.backup_collection("mydb", bad_name, tmp_path)
+
+    async def test_system_prefix_database_name_raises(
+        self, engine: MongodumpBackupEngine, tmp_path: Path
+    ) -> None:
+        with pytest.raises(BackupEngineError, match="cannot start with 'system.'"):
+            await engine.backup_collection("system.users", "mycol", tmp_path)
+
+    async def test_system_prefix_collection_name_raises(
+        self, engine: MongodumpBackupEngine, tmp_path: Path
+    ) -> None:
+        with pytest.raises(BackupEngineError, match="cannot start with 'system.'"):
+            await engine.backup_collection("mydb", "system.indexes", tmp_path)
+
+    async def test_database_name_too_long_raises(
+        self, engine: MongodumpBackupEngine, tmp_path: Path
+    ) -> None:
+        long_name = "a" * 65
+        with pytest.raises(BackupEngineError, match="exceeds maximum length"):
+            await engine.backup_collection(long_name, "mycol", tmp_path)
+
+    async def test_collection_name_too_long_raises(
+        self, engine: MongodumpBackupEngine, tmp_path: Path
+    ) -> None:
+        long_name = "b" * 256
+        with pytest.raises(BackupEngineError, match="exceeds maximum length"):
+            await engine.backup_collection("mydb", long_name, tmp_path)
+
+    @patch("app.infrastructure.backup.mongodump_engine.shutil.which")
+    @patch("app.infrastructure.backup.mongodump_engine.asyncio.create_subprocess_exec")
+    async def test_valid_names_proceed_to_subprocess(
+        self,
+        mock_subprocess: MagicMock,
+        mock_which: MagicMock,
+        engine: MongodumpBackupEngine,
+        tmp_path: Path,
+    ) -> None:
+        mock_which.return_value = "/usr/bin/mongodump"
+
+        db_dir = tmp_path / "mydb"
+        db_dir.mkdir()
+        dump_file = db_dir / "mycol.bson"
+        dump_file.write_bytes(b"fake")
+
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = MagicMock()
+        mock_proc.stdout.read = AsyncMock(return_value=b"stdout")
+        mock_proc.stderr = MagicMock()
+        mock_proc.stderr.read = AsyncMock(return_value=b"stderr")
+        mock_proc.wait = AsyncMock(return_value=0)
+        mock_subprocess.return_value = mock_proc
+
+        result = await engine.backup_collection("mydb", "mycol", tmp_path)
+
+        assert result.status == CollectionBackupStatus.SUCCESS
+        mock_subprocess.assert_called_once()
+
+
 class TestValidateConnection:
     @patch("app.infrastructure.backup.mongodump_engine.pymongo.MongoClient")
     async def test_returns_true_on_ping_success(
