@@ -13,7 +13,7 @@ from app.application.use_cases.cancel_job import CancelJobUseCase
 from app.domain.entities.audit_log import AuditLog
 from app.domain.entities.backup_job import BackupJob
 from app.domain.entities.user import User
-from app.domain.exceptions.domain_errors import JobError, PermissionError
+from app.domain.exceptions.domain_errors import DomainPermissionError, JobError
 from app.domain.repositories.repositories import IAuditRepository, IJobRepository
 from app.domain.value_objects.enums import JobStatus, UserRole
 
@@ -265,7 +265,7 @@ class TestCancelJobErrors:
         job = await _store_queued_job(job_repo, owner_user)
         dto = CancelJobDto(user=other_user, job_id=job.id)
 
-        with pytest.raises(PermissionError) as exc_info:
+        with pytest.raises(DomainPermissionError) as exc_info:
             await use_case.execute(dto)
         assert exc_info.value.code == "PERMISSION_DENIED"
 
@@ -283,6 +283,6 @@ class TestCancelJobErrors:
         await job_repo.save(job)
 
         dto = CancelJobDto(user=owner_user, job_id=job.id)
-        with pytest.raises(PermissionError) as exc_info:
+        with pytest.raises(DomainPermissionError) as exc_info:
             await use_case.execute(dto)
         assert exc_info.value.code == "PERMISSION_DENIED"

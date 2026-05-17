@@ -8,7 +8,7 @@ from app.application.dtos import AddUserDto, AddUserResult
 from app.application.services.audit_service import AuditService
 from app.application.services.permission_service import PermissionService
 from app.domain.entities.user import User
-from app.domain.exceptions.domain_errors import PermissionError
+from app.domain.exceptions.domain_errors import DomainPermissionError
 from app.domain.repositories.repositories import IUserRepository
 
 
@@ -41,11 +41,11 @@ class AddUserUseCase:
 
         Raises
         ------
-        PermissionError
+        DomainPermissionError
             When the requesting user is not an ADMIN.
         """
         if not self._permission_service.can_execute(dto.requester, "MANAGE_USERS", dto.topic):
-            raise PermissionError(
+            raise DomainPermissionError(
                 message="Only ADMIN can add users to the whitelist",
                 details={"requester_id": dto.requester.telegram_id},
             )

@@ -13,7 +13,7 @@ from app.application.services.audit_service import AuditService
 from app.application.services.permission_service import PermissionService
 from app.domain.entities.backup_job import BackupJob
 from app.domain.entities.user import User
-from app.domain.exceptions.domain_errors import JobError, PermissionError
+from app.domain.exceptions.domain_errors import DomainPermissionError, JobError
 from app.domain.repositories.repositories import IJobRepository
 from app.domain.value_objects.enums import BackupType, JobStatus
 
@@ -137,7 +137,7 @@ class JobManager:
             )
 
         if not self._permission_service.can_cancel(user, job):
-            raise PermissionError(
+            raise DomainPermissionError(
                 message="User is not allowed to cancel this job",
                 details={"job_id": job_id, "user_id": user.telegram_id},
             )

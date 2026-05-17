@@ -4,12 +4,12 @@ from app.domain.exceptions.domain_errors import (
     BackupEngineError,
     ConfigurationError,
     DomainError,
+    DomainPermissionError,
     InvalidStateTransitionError,
     JobError,
     MongoOpsError,
     NotificationError,
     PermissionDeniedError,
-    PermissionError,
     RepositoryError,
 )
 
@@ -46,7 +46,7 @@ class TestConfigurationError:
 
 class TestPermissionError:
     def test_code(self) -> None:
-        exc = PermissionError("nope")
+        exc = DomainPermissionError("nope")
         assert exc.code == "PERMISSION_DENIED"
         assert isinstance(exc, MongoOpsError)
 
@@ -85,4 +85,4 @@ class TestInvalidStateTransitionError:
 class TestPermissionDeniedError:
     def test_is_permission_error(self) -> None:
         exc = PermissionDeniedError("no access")
-        assert isinstance(exc, PermissionError)
+        assert isinstance(exc, DomainPermissionError)

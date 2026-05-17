@@ -12,7 +12,7 @@ from app.application.dtos import RequestBackupDto
 from app.domain.entities.user import User
 from app.domain.exceptions.domain_errors import (
     DiskSpaceError,
-    PermissionError,
+    DomainPermissionError,
     RateLimitError,
 )
 from app.domain.value_objects.dtos import CollectionTarget
@@ -494,7 +494,7 @@ async def on_ejecutar(
                     text=f"Sin espacio en disco: {exc.message}",
                 )
             return
-        except PermissionError as exc:
+        except DomainPermissionError as exc:
             await state.clear()
             if isinstance(callback.message, Message):
                 await callback.message.edit_text(

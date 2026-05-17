@@ -13,7 +13,7 @@ from app.application.services.permission_service import PermissionService
 from app.domain.entities.audit_log import AuditLog
 from app.domain.entities.backup_job import BackupJob
 from app.domain.entities.user import User
-from app.domain.exceptions.domain_errors import JobError, PermissionError
+from app.domain.exceptions.domain_errors import DomainPermissionError, JobError
 from app.domain.repositories.repositories import IAuditRepository, IJobRepository
 from app.domain.value_objects.dtos import CollectionTarget
 from app.domain.value_objects.enums import (
@@ -322,7 +322,7 @@ class TestJobManagerCancelJob:
         await fake_job_repo.save(job)
         await job_manager.enqueue_job(job.id)
 
-        with pytest.raises(PermissionError):
+        with pytest.raises(DomainPermissionError):
             await job_manager.cancel_job(job.id, other_user)
 
     @pytest.mark.asyncio
@@ -350,7 +350,7 @@ class TestJobManagerCancelJob:
         job.mark_success()
         await fake_job_repo.save(job)
 
-        with pytest.raises(PermissionError):
+        with pytest.raises(DomainPermissionError):
             await job_manager.cancel_job(job.id, owner_user)
 
 

@@ -16,7 +16,7 @@ from app.domain.entities.backup_job import BackupJob
 from app.domain.entities.user import User
 from app.domain.exceptions.domain_errors import (
     DiskSpaceError,
-    PermissionError,
+    DomainPermissionError,
     RateLimitError,
 )
 from app.domain.repositories.repositories import (
@@ -335,7 +335,7 @@ class TestRequestBackupPermissionError:
             backup_type=BackupType.FULL,
             cluster_uri_hash="hash123",
         )
-        with pytest.raises(PermissionError) as exc_info:
+        with pytest.raises(DomainPermissionError) as exc_info:
             await use_case.execute(dto)
         assert exc_info.value.code == "PERMISSION_DENIED"
 

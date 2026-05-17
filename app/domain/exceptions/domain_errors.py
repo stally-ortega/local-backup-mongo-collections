@@ -44,7 +44,7 @@ class ConfigurationError(MongoOpsError):
         super().__init__(code="CONFIG_INVALID", message=message, details=details)
 
 
-class PermissionError(MongoOpsError):
+class DomainPermissionError(MongoOpsError):
     """Raised when a principal lacks required privileges."""
 
     def __init__(
@@ -177,7 +177,7 @@ class JobAlreadyRunningError(JobError):
         self.code = "JOB_ALREADY_RUNNING"
 
 
-class PermissionDeniedError(PermissionError):
+class PermissionDeniedError(DomainPermissionError):
     """Raised when a user lacks the required role for an operation."""
 
     def __init__(

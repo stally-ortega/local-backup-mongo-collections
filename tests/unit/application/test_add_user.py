@@ -9,7 +9,7 @@ from app.application.services.audit_service import AuditService
 from app.application.services.permission_service import PermissionService
 from app.application.use_cases.add_user import AddUserUseCase
 from app.domain.entities.user import User
-from app.domain.exceptions.domain_errors import PermissionError
+from app.domain.exceptions.domain_errors import DomainPermissionError
 from app.domain.repositories.repositories import IUserRepository
 from app.domain.value_objects.enums import UserRole
 
@@ -110,7 +110,7 @@ class TestAddUserUseCaseExecute:
             role=UserRole.OPERATOR,
         )
 
-        with pytest.raises(PermissionError, match="Only ADMIN"):
+        with pytest.raises(DomainPermissionError, match="Only ADMIN"):
             await use_case.execute(dto)
 
         mock_user_repo.get_by_telegram_id.assert_not_called()

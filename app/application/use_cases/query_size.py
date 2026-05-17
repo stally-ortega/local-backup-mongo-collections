@@ -11,7 +11,7 @@ from app.application.dtos import QuerySizeDto, QuerySizeResult
 from app.application.ports.ports import ILockManager
 from app.application.services.audit_service import AuditService
 from app.application.services.size_query_service import SizeQueryService
-from app.domain.exceptions.domain_errors import BackupEngineError, PermissionError
+from app.domain.exceptions.domain_errors import BackupEngineError, DomainPermissionError
 
 
 class QuerySizeUseCase:
@@ -53,13 +53,13 @@ class QuerySizeUseCase:
 
         Raises
         ------
-        PermissionError
+        DomainPermissionError
             When the user lacks the required role for size queries.
         """
         # Size queries are open to all active roles; the guard here protects
         # against future policy changes without touching business logic.
         if not dto.user.is_active:
-            raise PermissionError(
+            raise DomainPermissionError(
                 message="User is not authorised to query sizes",
                 details={
                     "user_id": dto.user.telegram_id,

@@ -40,7 +40,7 @@ class CancelJobUseCase:
 
         Raises
         ------
-        PermissionError
+        DomainPermissionError
             When the user lacks the required role.
         JobError
             When the referenced job does not exist.

@@ -14,8 +14,8 @@ from app.application.services.job_manager import JobManager
 from app.application.services.permission_service import PermissionService
 from app.domain.exceptions.domain_errors import (
     DiskSpaceError,
+    DomainPermissionError,
     JobAlreadyRunningError,
-    PermissionError,
     RateLimitError,
 )
 from app.domain.repositories.repositories import IRateLimitRepository
@@ -80,7 +80,7 @@ class RequestBackupUseCase:
 
         Raises
         ------
-        PermissionError
+        DomainPermissionError
             When the user lacks the required role.
         RateLimitError
             When the user has exceeded the backup request rate limit.
@@ -89,7 +89,7 @@ class RequestBackupUseCase:
         """
         # 1. RBAC guard
         if not self._permission_service.can_execute(dto.user, "BACKUP", dto.topic):
-            raise PermissionError(
+            raise DomainPermissionError(
                 message="User is not authorised to request backups",
                 details={
                     "user_id": dto.user.telegram_id,

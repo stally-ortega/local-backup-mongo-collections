@@ -11,7 +11,7 @@ from app.application.use_cases.query_size import QuerySizeUseCase
 from app.domain.entities.audit_log import AuditLog
 from app.domain.entities.size_report import CollectionSize, DatabaseSize, SizeReport
 from app.domain.entities.user import User
-from app.domain.exceptions.domain_errors import PermissionError
+from app.domain.exceptions.domain_errors import DomainPermissionError
 from app.domain.repositories.repositories import IAuditRepository
 from app.domain.value_objects.enums import UserRole
 
@@ -235,7 +235,7 @@ class TestQuerySizePermissionError:
             cluster_uri_hash="hash123",
         )
 
-        with pytest.raises(PermissionError) as exc_info:
+        with pytest.raises(DomainPermissionError) as exc_info:
             await use_case.execute(dto)
         assert exc_info.value.code == "PERMISSION_DENIED"
 

@@ -25,7 +25,7 @@ from app.application.dtos import (
 )
 from app.domain.entities.backup_job import BackupJob
 from app.domain.entities.user import User
-from app.domain.exceptions.domain_errors import JobNotFoundError
+from app.domain.exceptions.domain_errors import DomainPermissionError, JobNotFoundError
 from app.domain.value_objects.enums import UserRole
 from app.infrastructure.logging.structured_logger import get_logger
 from app.telegram.dependencies import (
@@ -260,7 +260,7 @@ async def cmd_cancel(
     except JobNotFoundError:
         await message.answer(f"Job <code>{job_id}</code> no encontrado.")
         return
-    except PermissionError:
+    except DomainPermissionError:
         await message.answer("No tienes permiso para cancelar este job.")
         return
 
@@ -329,7 +329,7 @@ async def cmd_auth(
         use_case = build_add_user_use_case(telegram_deps, session)
         try:
             result: AddUserResult = await use_case.execute(dto)
-        except PermissionError:
+        except DomainPermissionError:
             await message.answer("No tienes permiso para gestionar usuarios.")
             return
         await session.commit()
@@ -404,7 +404,7 @@ async def on_job_action(
                 f"Job <code>{callback_data.job_id}</code> no encontrado."
             )
             return
-        except PermissionError:
+        except DomainPermissionError:
             await callback.message.edit_text("No tienes permiso para cancelar este job.")
             return
 
