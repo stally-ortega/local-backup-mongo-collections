@@ -182,4 +182,4 @@ if __name__ == "__main__":
         connection=redis_client,
         name="mongo_ops_backup_worker",
     )
-    worker.work()
+    worker.work(with_scheduler=True)
