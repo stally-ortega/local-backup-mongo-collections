@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -15,6 +16,9 @@ class BackupJob(BaseModel):
     """Represents a backup job and enforces valid state transitions."""
 
     model_config = {"validate_assignment": True}
+
+    # Sentinel value for cancellations initiated by the worker/system.
+    SYSTEM_TELEGRAM_ID: ClassVar[int] = -1
 
     id: str = Field(..., min_length=1)
     requester_telegram_id: int = Field(..., gt=0)

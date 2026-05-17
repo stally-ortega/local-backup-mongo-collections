@@ -307,7 +307,7 @@ class ExecuteBackupUseCase:
     ) -> JobStatus:
         """Transition the job to its terminal state based on execution outcome."""
         if was_cancelled:
-            job.mark_cancelled(by_telegram_id=0)
+            job.mark_cancelled(by_telegram_id=BackupJob.SYSTEM_TELEGRAM_ID)
             return JobStatus.CANCELLED
 
         if total > 0 and failed == total:

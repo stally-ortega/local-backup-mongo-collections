@@ -696,7 +696,7 @@ class TestExecuteBackupCancellation:
         stored = await job_repo.get_by_id(job.id)
         assert stored is not None
         assert stored.status == JobStatus.CANCELLED
-        assert stored.cancelled_by == 0
+        assert stored.cancelled_by == BackupJob.SYSTEM_TELEGRAM_ID
 
     @pytest.mark.asyncio
     async def test_retention_not_applied_when_cancelled(
