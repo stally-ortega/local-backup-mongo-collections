@@ -7,11 +7,9 @@ without exposing adapter details to the interface layer.
 from pathlib import Path
 
 from app.application.dtos import HealthCheckDto, HealthCheckResult
-from app.application.ports.ports import IFsUtils
+from app.application.ports.ports import IFsUtils, IMongoHealth, IRedisHealth
 from app.domain.repositories.repositories import IJobRepository
 from app.domain.value_objects.enums import JobStatus
-from app.infrastructure.mongo.mongo_connection import MongoConnection
-from app.infrastructure.queue.redis_connection import RedisConnection
 
 
 class HealthCheckUseCase:
@@ -19,11 +17,11 @@ class HealthCheckUseCase:
 
     Parameters
     ----------
-    mongo_connection:
-        Optional MongoDB connection. When ``None``, the MongoDB check
+    mongo_health:
+        Optional MongoDB health port. When ``None``, the MongoDB check
         always reports ``False``.
-    redis_connection:
-        Optional Redis connection. When ``None``, the Redis check
+    redis_health:
+        Optional Redis health port. When ``None``, the Redis check
         always reports ``False``.
     fs_utils:
         Async filesystem adapter for disk-space inspection.
@@ -36,14 +34,14 @@ class HealthCheckUseCase:
     def __init__(
         self,
         *,
-        mongo_connection: MongoConnection | None = None,
-        redis_connection: RedisConnection | None = None,
+        mongo_health: IMongoHealth | None = None,
+        redis_health: IRedisHealth | None = None,
         fs_utils: IFsUtils,
         backup_base_path: Path,
         job_repository: IJobRepository | None = None,
     ) -> None:
-        self._mongo = mongo_connection
-        self._redis = redis_connection
+        self._mongo = mongo_health
+        self._redis = redis_health
         self._fs = fs_utils
         self._base_path = backup_base_path
         self._job_repo = job_repository

@@ -254,8 +254,8 @@ def build_health_check_use_case(
     """Assemble a :class:`HealthCheckUseCase` wired to SQL persistence."""
     job_repo = SQLJobRepository(session)
     return HealthCheckUseCase(
-        mongo_connection=deps.mongo_connection,
-        redis_connection=deps.redis_connection,
+        mongo_health=deps.mongo_connection,
+        redis_health=deps.redis_connection,
         fs_utils=deps.fs_utils,
         backup_base_path=deps.config.backup_base_path,
         job_repository=job_repo,

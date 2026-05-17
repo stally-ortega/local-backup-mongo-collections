@@ -169,6 +169,22 @@ class IRetentionManager(Protocol):
         ...
 
 
+class IMongoHealth(Protocol):
+    """Port for MongoDB health probes."""
+
+    async def ping(self) -> bool:
+        """Return ``True`` when MongoDB is reachable."""
+        ...
+
+
+class IRedisHealth(Protocol):
+    """Port for Redis health probes."""
+
+    async def ping(self) -> bool:
+        """Return ``True`` when Redis is reachable."""
+        ...
+
+
 class IMongoMetadata(Protocol):
     """Port for MongoDB metadata and size introspection."""
 
