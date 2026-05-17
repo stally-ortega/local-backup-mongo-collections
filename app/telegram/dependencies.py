@@ -109,7 +109,7 @@ def build_telegram_dependencies(
 
     aioredis_client = aioredis.Redis.from_url(config.redis_url)
 
-    fs_utils: IFsUtils = AioFsUtils()
+    fs_utils: IFsUtils = AioFsUtils(base_path=config.backup_base_path)
     perms = PermissionService()
 
     return TelegramDependencies(

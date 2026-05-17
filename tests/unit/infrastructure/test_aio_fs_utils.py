@@ -13,6 +13,30 @@ def fs() -> AioFsUtils:
     return AioFsUtils()
 
 
+class TestPathValidation:
+    async def test_rejects_path_outside_base(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        fs = AioFsUtils(base_path=tmp_path / "safe")
+        evil = tmp_path / ".." / "evil.txt"
+
+        with pytest.raises(ValueError, match="outside the authorized base path"):
+            await fs.ensure_dir(evil)
+
+    async def test_allows_path_inside_base(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        safe_base = tmp_path / "safe"
+        safe_base.mkdir()
+        fs = AioFsUtils(base_path=safe_base)
+        target = safe_base / "subdir"
+
+        await fs.ensure_dir(target)
+        assert target.is_dir()
+
+
 class TestEnsureDir:
     async def test_creates_nested_directories(
         self,

@@ -75,7 +75,7 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
 
             # Services
             audit_service = AuditService(repository=audit_repo)
-            fs_utils = AioFsUtils()
+            fs_utils = AioFsUtils(base_path=config.backup_base_path)
 
             # Infrastructure adapters
             import redis.asyncio as aioredis

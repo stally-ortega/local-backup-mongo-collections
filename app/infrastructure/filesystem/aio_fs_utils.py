@@ -20,19 +20,45 @@ class AioFsUtils:
 
     Every public method is ``async`` and safe to call from an ``asyncio``
     event loop without monopolising the thread.
+
+    Parameters
+    ----------
+    base_path:
+        Optional root directory that all operations must remain within.
+        When provided, any path that resolves outside *base_path* raises
+        :class:`ValueError`.
     """
+
+    def __init__(self, base_path: Path | None = None) -> None:
+        self._base_path = base_path
+
+    def _validate_path(self, path: Path) -> Path:
+        """Resolve *path* and verify it stays within ``base_path``.
+
+        Raises
+        ------
+        ValueError
+            When the resolved path escapes the authorized base directory.
+        """
+        resolved = path.resolve()
+        if self._base_path is not None and not resolved.is_relative_to(self._base_path.resolve()):
+            raise ValueError(f"Path {resolved} is outside the authorized base path")
+        return resolved
 
     async def ensure_dir(self, path: Path) -> None:
         """Create directory tree if it does not already exist."""
+        self._validate_path(path)
         await asyncio.to_thread(path.mkdir, parents=True, exist_ok=True)
 
     async def write_text(self, path: Path, content: str) -> None:
         """Write UTF-8 text to *path*, creating parent directories first."""
+        self._validate_path(path)
         await self.ensure_dir(path.parent)
         await asyncio.to_thread(path.write_text, content, encoding="utf-8")
 
     async def get_folder_size(self, path: Path) -> int:
         """Return total size in bytes of *path* and its descendants."""
+        self._validate_path(path)
 
         def _walk() -> int:
             total = 0
@@ -54,6 +80,8 @@ class AioFsUtils:
 
     async def compress(self, source: Path, destination: Path) -> None:
         """Create a gzipped tar archive at *destination* from *source*."""
+        self._validate_path(source)
+        self._validate_path(destination)
         if not await asyncio.to_thread(source.exists):
             raise FileNotFoundError(f"Source not found: {source}")
 
@@ -68,6 +96,7 @@ class AioFsUtils:
 
     async def delete(self, path: Path) -> None:
         """Remove *path* — file or directory tree."""
+        self._validate_path(path)
 
         def _remove() -> None:
             if not path.exists():
@@ -81,6 +110,7 @@ class AioFsUtils:
 
     async def list_files(self, path: Path, pattern: str = "*") -> list[Path]:
         """Return files directly under *path* matching *pattern*."""
+        self._validate_path(path)
 
         def _glob() -> list[Path]:
             if not path.exists():
@@ -91,6 +121,7 @@ class AioFsUtils:
 
     async def list_files_recursive(self, path: Path, pattern: str = "**/*") -> list[Path]:
         """Return files recursively under *path* matching *pattern*."""
+        self._validate_path(path)
 
         def _rglob() -> list[Path]:
             if not path.exists():
@@ -101,6 +132,7 @@ class AioFsUtils:
 
     async def get_modification_time(self, path: Path) -> datetime:
         """Return the last modification time of *path* as a UTC datetime."""
+        self._validate_path(path)
         mtime: float = await asyncio.to_thread(lambda: path.stat().st_mtime)
         return datetime.utcfromtimestamp(mtime)
 
@@ -111,4 +143,6 @@ class AioFsUtils:
         required by the work-plan and may be promoted to the port in the
         future.
         """
+        self._validate_path(source)
+        self._validate_path(destination)
         await asyncio.to_thread(shutil.move, str(source), str(destination))
