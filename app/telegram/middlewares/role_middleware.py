@@ -50,7 +50,7 @@ class RoleMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         if self._session_factory is None:
-            return await handler(event, data)
+            return None
 
         user = data.get("user")
         if not isinstance(user, User):

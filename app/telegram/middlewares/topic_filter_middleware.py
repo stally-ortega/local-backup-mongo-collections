@@ -38,9 +38,8 @@ class TopicFilterMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        # When no configuration is wired (e.g. lightweight tests) let everything through.
         if self._config is None:
-            return await handler(event, data)
+            return None
 
         ctx = extract_context(event)
 

@@ -50,9 +50,8 @@ class AuthMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        # Fallback for tests / lightweight environments.
         if self._session_factory is None:
-            return await handler(event, data)
+            return None
 
         ctx = extract_context(event)
         if ctx.user_id is None:

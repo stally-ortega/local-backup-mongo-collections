@@ -57,7 +57,7 @@ class RateLimitMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         if self._config is None:
-            return await handler(event, data)
+            return None
 
         user = data.get("user")
         if not isinstance(user, User):
@@ -77,7 +77,7 @@ class RateLimitMiddleware(BaseMiddleware):
             await self._increment_with_redis(user.telegram_id, action)
         else:
             if self._session_factory is None:
-                return await handler(event, data)
+                return None
 
             async with self._session_factory() as session:
                 repo = SQLRateLimitRepository(session)

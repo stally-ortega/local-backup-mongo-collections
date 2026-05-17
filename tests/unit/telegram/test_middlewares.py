@@ -45,6 +45,10 @@ def app_config() -> AppConfig:
         mongodb_uri="mongodb://localhost:27017",
         database_url="sqlite+aiosqlite:///:memory:",
         redis_url="redis://localhost:6379/0",
+        topic_backup_requests=1,
+        topic_size_ask=2,
+        topic_execution_errors=3,
+        topic_admin=4,
     )
 
 
@@ -242,7 +246,8 @@ class TestTopicFilterMiddleware:
     ) -> None:
         mw = TopicFilterMiddleware(config=None)
         result = await mw(mock_handler, _make_message_update(topic_id=99), _make_data())
-        assert result == "handler_result"
+        assert result is None
+        mock_handler.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -321,7 +326,8 @@ class TestAuthMiddleware:
     ) -> None:
         mw = AuthMiddleware(session_factory=None)
         result = await mw(mock_handler, _make_message_update(), _make_data())
-        assert result == "handler_result"
+        assert result is None
+        mock_handler.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -404,7 +410,8 @@ class TestRoleMiddleware:
     ) -> None:
         mw = RoleMiddleware(session_factory=None)
         result = await mw(mock_handler, _make_message_update(), _make_data())
-        assert result == "handler_result"
+        assert result is None
+        mock_handler.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -474,7 +481,8 @@ class TestRateLimitMiddleware:
     ) -> None:
         mw = RateLimitMiddleware(session_factory=None, config=None)
         result = await mw(mock_handler, _make_message_update(), _make_data())
-        assert result == "handler_result"
+        assert result is None
+        mock_handler.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
