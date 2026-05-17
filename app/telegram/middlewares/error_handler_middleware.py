@@ -6,13 +6,13 @@ Unhandled exceptions are logged at CRITICAL level, forwarded to the
 not crash the dispatcher polling loop.
 """
 
-import html
 import traceback
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 from typing import Any
 
 from aiogram import BaseMiddleware, Bot
-from aiogram.types import CallbackQuery, Message, TelegramObject, Update
+from aiogram.types import BufferedInputFile, CallbackQuery, Message, TelegramObject, Update
 
 from app.config import AppConfig, settings
 from app.infrastructure.logging.structured_logger import get_logger
@@ -56,7 +56,18 @@ class ErrorHandlerMiddleware(BaseMiddleware):
                 error_details = "".join(
                     traceback.format_exception(type(exc), exc, exc.__traceback__)
                 )
-                safe_error = html.escape(error_details)[:3800]
+                log_file = BufferedInputFile(
+                    error_details.encode("utf-8"),
+                    filename=f"error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                )
+                origen_chat = f"{ctx.chat_id}" if ctx.chat_id is not None else "N/A"
+                origen_topic = f"{ctx.topic_id}" if ctx.topic_id is not None else "N/A"
+                caption = (
+                    f"🚨 <b>ERROR FATAL</b>\n"
+                    f"Origen: Chat <code>{origen_chat}</code> | "
+                    f"Topic <code>{origen_topic}</code>\n"
+                    f"Tipo: <code>{type(exc).__name__}</code>"
+                )
                 bot = data.get("bot")
                 if isinstance(bot, Bot):
                     self._logger.error(
@@ -65,9 +76,10 @@ class ErrorHandlerMiddleware(BaseMiddleware):
                         target_topic,
                     )
                     try:
-                        await bot.send_message(
+                        await bot.send_document(
                             chat_id=target_chat,
-                            text=f"🚨 <b>ERROR FATAL</b>\n<pre>{safe_error}</pre>",
+                            document=log_file,
+                            caption=caption,
                             message_thread_id=target_topic,
                             parse_mode="HTML",
                         )

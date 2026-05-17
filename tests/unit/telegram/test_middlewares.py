@@ -57,6 +57,7 @@ def mock_handler() -> AsyncMock:
 def mock_bot() -> MagicMock:
     bot = MagicMock(spec=Bot)
     bot.send_message = AsyncMock(return_value=None)
+    bot.send_document = AsyncMock(return_value=None)
     return bot
 
 
@@ -164,7 +165,8 @@ class TestErrorHandlerMiddleware:
         data = _make_data(mock_bot)
         result = await mw(mock_handler, _make_message_update(topic_id=2), data)
         assert result is None
-        assert mock_bot.send_message.await_count == 2
+        mock_bot.send_message.assert_awaited_once()
+        mock_bot.send_document.assert_awaited_once()
 
     async def test_does_not_notify_execution_errors_topic(
         self,
@@ -182,6 +184,7 @@ class TestErrorHandlerMiddleware:
             data,
         )
         mock_bot.send_message.assert_awaited_once()
+        mock_bot.send_document.assert_not_awaited()
 
     async def test_passes_through_when_no_error(
         self,
