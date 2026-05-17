@@ -6,10 +6,12 @@ Unhandled exceptions are logged at CRITICAL level, forwarded to the
 not crash the dispatcher polling loop.
 """
 
+import html
+import traceback
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from aiogram import BaseMiddleware
+from aiogram import BaseMiddleware, Bot
 from aiogram.types import CallbackQuery, Message, TelegramObject, Update
 
 from app.config import AppConfig
@@ -49,18 +51,23 @@ class ErrorHandlerMiddleware(BaseMiddleware):
 
             # B. Send detailed report to the execution-errors topic.
             if self._config is not None and ctx.topic_id != self._config.topic_execution_errors:
-                await safe_send_message(
-                    data,
-                    chat_id=self._config.telegram_chat_id,
-                    text=(
-                        f"<b>Execution error</b>\n"
-                        f"User: <code>{ctx.user_id}</code>\n"
-                        f"Topic: <code>{ctx.topic_id}</code>\n"
-                        f"Update: <code>{ctx.update_id}</code>\n"
-                        f"Exception: <pre>{type(exc).__name__}: {exc}</pre>"
-                    ),
-                    topic_id=self._config.topic_execution_errors,
+                error_details = "".join(
+                    traceback.format_exception(type(exc), exc, exc.__traceback__)
                 )
+                safe_error = html.escape(error_details)[:3800]
+                bot = data.get("bot")
+                if isinstance(bot, Bot):
+                    try:
+                        await bot.send_message(
+                            chat_id=self._config.telegram_chat_id,
+                            text=f"🚨 <b>ERROR FATAL</b>\n<pre>{safe_error}</pre>",
+                            message_thread_id=self._config.topic_execution_errors,
+                        )
+                    except Exception as inner_e:
+                        self._logger.error(
+                            "No se pudo enviar la alerta a Telegram: %s",
+                            inner_e,
+                        )
 
             # Swallow the exception so polling continues.
             return None

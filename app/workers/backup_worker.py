@@ -11,6 +11,7 @@ backups.
 """
 
 import asyncio
+import html
 import logging
 import signal
 import traceback
@@ -128,17 +129,25 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
                             )
 
                     # B. Send detailed traceback to the execution-errors topic.
-                    tb = traceback.format_exc()
-                    await notifier.send_message(
-                        chat_id=int(config.telegram_chat_id),
-                        text=(
-                            f"<b>Fatal Worker Error</b>\n"
-                            f"Job: <code>{job_id}</code>\n"
-                            f"Exception: <pre>{exc}</pre>\n"
-                            f"Traceback:\n<pre>{tb}</pre>"
-                        ),
-                        topic_id=config.topic_execution_errors,
+                    error_details = "".join(
+                        traceback.format_exception(type(exc), exc, exc.__traceback__)
                     )
+                    safe_error = html.escape(error_details)[:3800]
+                    try:
+                        await notifier.send_message(
+                            chat_id=int(config.telegram_chat_id),
+                            text=(
+                                f"🚨 <b>Fatal Worker Error</b>\n"
+                                f"Job: <code>{job_id}</code>\n"
+                                f"<pre>{safe_error}</pre>"
+                            ),
+                            topic_id=config.topic_execution_errors,
+                        )
+                    except Exception as inner_e:
+                        logger.error(
+                            "No se pudo enviar la alerta a Telegram: %s",
+                            inner_e,
+                        )
                     raise
             finally:
                 mongo_conn.close()

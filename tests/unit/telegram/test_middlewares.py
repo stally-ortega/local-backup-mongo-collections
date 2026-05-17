@@ -156,7 +156,7 @@ class TestErrorHandlerMiddleware:
         data = _make_data(mock_bot)
         result = await mw(mock_handler, _make_message_update(topic_id=2), data)
         assert result is None
-        mock_bot.send_message.assert_awaited_once()
+        assert mock_bot.send_message.await_count == 2
 
     async def test_does_not_notify_execution_errors_topic(
         self,
@@ -167,9 +167,9 @@ class TestErrorHandlerMiddleware:
         mock_handler.side_effect = RuntimeError("boom")
         mw = ErrorHandlerMiddleware(config=app_config)
         data = _make_data(mock_bot)
-        # topic_id == topic_execution_errors (3)
-        await mw(mock_handler, _make_message_update(topic_id=3), data)
-        mock_bot.send_message.assert_not_awaited()
+        # topic_id == topic_execution_errors (7)
+        await mw(mock_handler, _make_message_update(topic_id=7), data)
+        mock_bot.send_message.assert_awaited_once()
 
     async def test_passes_through_when_no_error(
         self,

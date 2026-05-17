@@ -123,6 +123,7 @@ def _make_callback() -> MagicMock:
     cb.message = MagicMock(spec=Message)
     cb.message.edit_text = AsyncMock()
     cb.message.answer = AsyncMock()
+    cb.message.message_id = 1
     cb.message.message_thread_id = 1
     cb.message.chat = MagicMock(spec=Chat)
     cb.message.chat.id = -100
