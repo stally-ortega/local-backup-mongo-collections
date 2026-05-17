@@ -113,7 +113,14 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
                     backup_base_path=config.backup_base_path,
                 )
 
-                dto = ExecuteBackupDto(**(payload or {}), job_id=job_id)
+                payload = payload or {}
+                dto = ExecuteBackupDto(
+                    job_id=job_id,
+                    chat_id=payload.get("chat_id"),
+                    topic_id=payload.get("topic_id"),
+                    status_message_id=payload.get("status_message_id"),
+                    correlation_id=payload.get("correlation_id"),
+                )
                 try:
                     await use_case.execute(dto, cancel_check=_cancel_check)
                 except Exception:
