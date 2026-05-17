@@ -119,36 +119,10 @@ class ExecuteBackupUseCase:
                 await self._job_repository.clear_session_cache()
                 await asyncio.sleep(self._RETRY_BACKOFF_S)
         if job is None:
-            if (
-                dto.requester_telegram_id is not None
-                and dto.backup_type is not None
-                and dto.cluster_uri_hash is not None
-            ):
-                if dto.backup_type == BackupType.CUSTOM and dto.target_collections:
-                    job = BackupJob.create_custom(
-                        job_id=dto.job_id,
-                        requester_telegram_id=dto.requester_telegram_id,
-                        cluster_uri_hash=dto.cluster_uri_hash,
-                        target_collections=dto.target_collections,
-                        chat_id=dto.chat_id,
-                        topic_id=dto.topic_id,
-                        status_message_id=dto.status_message_id,
-                    )
-                else:
-                    job = BackupJob.create_full(
-                        job_id=dto.job_id,
-                        requester_telegram_id=dto.requester_telegram_id,
-                        cluster_uri_hash=dto.cluster_uri_hash,
-                        chat_id=dto.chat_id,
-                        topic_id=dto.topic_id,
-                        status_message_id=dto.status_message_id,
-                    )
-                job.mark_queued()
-            else:
-                raise JobNotFoundError(
-                    message=f"Job {dto.job_id} not found after {self._MAX_LOOKUP_RETRIES} retries",
-                    details={"job_id": dto.job_id},
-                )
+            raise JobNotFoundError(
+                message=f"Job {dto.job_id} not found after {self._MAX_LOOKUP_RETRIES} retries",
+                details={"job_id": dto.job_id},
+            )
 
         # Acquire cluster-scoped lock before transitioning to RUNNING.
         lock_token: str | None = None
