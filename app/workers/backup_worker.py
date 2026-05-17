@@ -117,13 +117,13 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
                     await use_case.execute(dto, cancel_check=_cancel_check)
                 except Exception as exc:
                     await notifier.send_message(
-                        chat_id=-1003995159676,
+                        chat_id=int(config.telegram_chat_id),
                         text=(
                             f"<b>Fatal Worker Error</b>\n"
                             f"Job: <code>{job_id}</code>\n"
                             f"Exception: <pre>{exc}</pre>"
                         ),
-                        topic_id=7,
+                        topic_id=config.topic_execution_errors,
                     )
                     raise
             finally:
