@@ -91,7 +91,10 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
             try:
                 backup_engine = MongodumpBackupEngine(config.mongodb_uri)
                 mongo_metadata = MongoMetadataAdapter(mongo_conn)
-                notifier = TelegramNotifier(aiogram_bot)
+                notifier = TelegramNotifier(
+                    aiogram_bot,
+                    base_path=config.backup_base_path,
+                )
                 retention_manager = RetentionManager(
                     fs_utils=fs_utils,
                     backup_base_path=config.backup_base_path,

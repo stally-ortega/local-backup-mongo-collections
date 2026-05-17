@@ -147,7 +147,7 @@ class TestSendDocument:
                 topic_id=3,
             )
 
-            mock_fs.assert_called_once_with(str(Path("/tmp/backup.tar.gz")))
+            mock_fs.assert_called_once_with(str(Path("/tmp/backup.tar.gz").resolve()))
             mock_bot.send_document.assert_awaited_once_with(
                 chat_id=-100,
                 document=mock_fs.return_value,
@@ -175,6 +175,38 @@ class TestSendDocument:
                 caption="&lt;script&gt;pwn&lt;/script&gt;",
                 message_thread_id=None,
             )
+
+    async def test_rejects_path_outside_base(
+        self,
+        aiogram_bot: AiogramBot,
+        mock_bot: MagicMock,
+    ) -> None:
+        notifier = TelegramNotifier(aiogram_bot, base_path=Path("/safe/backups"))
+
+        with pytest.raises(ValueError, match="outside the authorized base path"):
+            await notifier.send_document(
+                chat_id=-100,
+                file_path=Path("/etc/passwd"),
+            )
+
+        mock_bot.send_document.assert_not_awaited()
+
+    async def test_allows_path_inside_base(
+        self,
+        aiogram_bot: AiogramBot,
+        mock_bot: MagicMock,
+    ) -> None:
+        notifier = TelegramNotifier(aiogram_bot, base_path=Path("/safe/backups"))
+
+        with patch("app.infrastructure.notifier.telegram_notifier.FSInputFile") as mock_fs:
+            mock_fs.return_value = MagicMock()
+
+            await notifier.send_document(
+                chat_id=-100,
+                file_path=Path("/safe/backups/job.tar.gz"),
+            )
+
+            mock_bot.send_document.assert_awaited_once()
 
 
 class TestRateLimiting:

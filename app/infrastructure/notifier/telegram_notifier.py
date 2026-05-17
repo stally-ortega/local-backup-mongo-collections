@@ -59,8 +59,14 @@ class _GlobalRateLimiter:
 class TelegramNotifier:
     """Send Telegram messages via aiogram with resilience controls."""
 
-    def __init__(self, aiogram_bot: AiogramBot) -> None:
+    def __init__(
+        self,
+        aiogram_bot: AiogramBot,
+        *,
+        base_path: Path | None = None,
+    ) -> None:
         self._bot = aiogram_bot
+        self._base_path = base_path
         self._rate_limiter = _GlobalRateLimiter(
             _MAX_MESSAGES_PER_SECOND,
             _WINDOW_SECONDS,
@@ -149,12 +155,16 @@ class TelegramNotifier:
         topic_id: int | None = None,
         correlation_id: str | None = None,
     ) -> None:
+        resolved = file_path.resolve()
+        if self._base_path is not None and not resolved.is_relative_to(self._base_path.resolve()):
+            raise ValueError(f"File path {resolved} is outside the authorized base path")
+
         safe_caption = html.escape(caption) if caption is not None else None
 
         async def _call() -> None:
             await self._bot.bot.send_document(
                 chat_id=chat_id,
-                document=FSInputFile(str(file_path)),
+                document=FSInputFile(str(resolved)),
                 caption=safe_caption,
                 message_thread_id=topic_id,
             )
