@@ -82,7 +82,20 @@ class RedisConnection:
             decode_responses=True,
         )
         self._client = redis.Redis(connection_pool=pool)
-        logger.debug("Redis client created for %s", self._redis_url)
+        logger.debug("Redis client created for %s", self._url_masked)
+
+    @property
+    def _url_masked(self) -> str:
+        """Obfuscate credentials for safe logging."""
+        try:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(self._redis_url)
+            scheme = parsed.scheme or "redis"
+            host = parsed.hostname or "unknown"
+            return f"{scheme}://***@{host}"
+        except Exception:
+            return "redis://***"
 
     def close(self) -> None:
         """Close the client and release the connection pool."""
