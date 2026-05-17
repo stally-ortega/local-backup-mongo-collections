@@ -215,6 +215,19 @@ class TestTopicFilterMiddleware:
         result = await mw(mock_handler, _make_message_update(topic_id=1), _make_data())
         assert result == "handler_result"
 
+    async def test_blocks_wrong_chat_id(
+        self,
+        app_config: AppConfig,
+        mock_handler: AsyncMock,
+        mock_bot: MagicMock,
+    ) -> None:
+        mw = TopicFilterMiddleware(config=app_config)
+        data = _make_data(mock_bot)
+        result = await mw(mock_handler, _make_message_update(chat_id=-200, topic_id=1), data)
+        assert result is None
+        mock_handler.assert_not_awaited()
+        mock_bot.send_message.assert_not_awaited()
+
     async def test_blocks_unknown_topic(
         self,
         app_config: AppConfig,

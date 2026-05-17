@@ -43,6 +43,15 @@ class TopicFilterMiddleware(BaseMiddleware):
 
         ctx = extract_context(event)
 
+        # Silently drop messages from unauthorized chats.
+        if ctx.chat_id is not None and str(ctx.chat_id) != self._config.telegram_chat_id:
+            self._logger.debug(
+                "ignoring_unauthorized_chat",
+                chat_id=ctx.chat_id,
+                expected_chat_id=self._config.telegram_chat_id,
+            )
+            return None
+
         # DM or group message without a topic.
         if ctx.topic_id is None:
             self._logger.debug(
