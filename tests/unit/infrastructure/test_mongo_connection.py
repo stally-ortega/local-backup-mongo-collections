@@ -107,17 +107,17 @@ class TestMongoConnectionFromConfig:
         cfg = AppConfig(
             telegram_bot_token="t",
             telegram_chat_id="-100",
-            mongodb_uri="mongodb://user:pass@host:27017/db",
+            mongodb_uri="mongodb://testuser:testpass@localhost:27017/testdb",
             database_url="sqlite+aiosqlite:///:memory:",
         )
         conn = MongoConnection.from_config(cfg)
-        assert conn._uri == "mongodb://user:pass@host:27017/db"
+        assert conn._uri == "mongodb://testuser:testpass@localhost:27017/testdb"
 
 
 class TestMongoConnectionUriMasking:
     def test_uri_masked_with_credentials(self) -> None:
-        conn = MongoConnection("mongodb://user:secret@mongodb.example.com:27017")
-        assert conn._uri_masked == "mongodb://***@mongodb.example.com"
+        conn = MongoConnection("mongodb://testuser:testpass@localhost:27017")
+        assert conn._uri_masked == "mongodb://***@localhost"
 
     def test_uri_masked_without_credentials(self) -> None:
         conn = MongoConnection("mongodb://localhost:27017")

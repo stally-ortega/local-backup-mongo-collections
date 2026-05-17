@@ -22,7 +22,9 @@ class TestAppConfigValidation:
     def _set_required(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("MONGO_OPS_TELEGRAM_BOT_TOKEN", "test-token")
         monkeypatch.setenv("MONGO_OPS_TELEGRAM_CHAT_ID", "-100123456789")
-        monkeypatch.setenv("MONGO_OPS_MONGODB_URI", "mongodb+srv://u:p@cluster.mongodb.net/")
+        monkeypatch.setenv(
+            "MONGO_OPS_MONGODB_URI", "mongodb://testuser:testpass@localhost:27017/testdb"
+        )
 
     @staticmethod
     def _load() -> AppConfig:
@@ -42,7 +44,7 @@ class TestAppConfigValidation:
 
         assert cfg.telegram_bot_token == "test-token"
         assert cfg.telegram_chat_id == "-100123456789"
-        assert cfg.mongodb_uri == "mongodb+srv://u:p@cluster.mongodb.net/"
+        assert cfg.mongodb_uri == "mongodb://testuser:testpass@localhost:27017/testdb"
 
     def test_defaults_when_optional_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Optional fields fall back to documented defaults."""
