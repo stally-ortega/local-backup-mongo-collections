@@ -22,6 +22,7 @@ from app.telegram.keyboards.users_keyboards import (
     UserToggleCallback,
 )
 from app.telegram.routers.admin import (
+    _render_job_detail,
     cmd_auth,
     cmd_cancel,
     cmd_health,
@@ -106,6 +107,20 @@ def _make_job(job_id: str = "job-123", status: JobStatus = JobStatus.QUEUED) -> 
         cluster_uri_hash="abc123def",
         created_at=datetime(2026, 5, 10, 12, 0, 0),
     )
+
+
+# ---------------------------------------------------------------------------
+# _render_job_detail
+# ---------------------------------------------------------------------------
+
+
+class TestRenderJobDetail:
+    def test_escapes_html_in_error_log(self) -> None:
+        job = _make_job()
+        job.error_log = "<script>alert('xss')</script>"
+        text = _render_job_detail(job)
+        assert "<script>" not in text
+        assert "&lt;script&gt;" in text
 
 
 # ---------------------------------------------------------------------------

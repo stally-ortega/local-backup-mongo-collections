@@ -5,6 +5,8 @@ All handlers are stateless; pagination is driven entirely by callback
 payloads so that no FSM context is required.
 """
 
+import html
+
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
@@ -79,7 +81,7 @@ def _render_job_detail(job: BackupJob) -> str:
     if job.completed_at:
         lines.append(f"<b>Completado:</b> {job.completed_at.isoformat()}")
     if job.error_log:
-        lines.append(f"<b>Error:</b> {job.error_log[:200]}")
+        lines.append(f"<b>Error:</b> {html.escape(job.error_log[:200])}")
     return "\n".join(lines)
 
 
