@@ -97,14 +97,13 @@ class RequestBackupUseCase:
                 },
             )
 
-        # 2. Rate-limit guard
-        allowed = await self._rate_limit_repo.check_limit(
+        # 2. Rate-limit guard (atomic increment-and-check)
+        count = await self._rate_limit_repo.increment(
             telegram_id=dto.user.telegram_id,
             action="BACKUP",
-            max_allowed=self._max_backup_rate,
             window_seconds=self._backup_rate_window,
         )
-        if not allowed:
+        if count > self._max_backup_rate:
             raise RateLimitError(
                 message="Backup rate limit exceeded. Please wait before retrying.",
                 details={
@@ -171,13 +170,6 @@ class RequestBackupUseCase:
 
             # 8. Enqueue for execution
             await self._job_manager.enqueue_job(job.id)
-
-            # 8. Increment rate-limit counter
-            await self._rate_limit_repo.increment(
-                telegram_id=dto.user.telegram_id,
-                action="BACKUP",
-                window_seconds=self._backup_rate_window,
-            )
 
             return RequestBackupResult(
                 job_id=job.id,
