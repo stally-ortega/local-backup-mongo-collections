@@ -131,6 +131,7 @@ class ExecuteBackupUseCase:
                         target_collections=dto.target_collections,
                         chat_id=dto.chat_id,
                         topic_id=dto.topic_id,
+                        status_message_id=dto.status_message_id,
                     )
                 else:
                     job = BackupJob.create_full(
@@ -139,6 +140,7 @@ class ExecuteBackupUseCase:
                         cluster_uri_hash=dto.cluster_uri_hash,
                         chat_id=dto.chat_id,
                         topic_id=dto.topic_id,
+                        status_message_id=dto.status_message_id,
                     )
                 job.mark_queued()
             else:

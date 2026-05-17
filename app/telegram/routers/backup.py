@@ -463,6 +463,9 @@ async def on_ejecutar(
         user=user,
         chat_id=chat_id,
         topic_id=topic_id,
+        status_message_id=callback.message.message_id
+        if isinstance(callback.message, Message)
+        else None,
         backup_type=BackupType(backup_type_str),
         cluster_uri_hash=telegram_deps.config.cluster_uri_hash,
         target_collections=target_collections,

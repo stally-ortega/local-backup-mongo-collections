@@ -13,6 +13,8 @@ backups.
 import asyncio
 import logging
 import signal
+import traceback
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from rq import Worker
@@ -116,12 +118,24 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
                 try:
                     await use_case.execute(dto, cancel_check=_cancel_check)
                 except Exception as exc:
+                    # A. Update the original status message so the UI is not left hanging.
+                    if dto.chat_id is not None and dto.status_message_id is not None:
+                        with suppress(Exception):
+                            await notifier.edit_message(
+                                chat_id=dto.chat_id,
+                                message_id=dto.status_message_id,
+                                text="❌ FAILED: Error interno en el worker",
+                            )
+
+                    # B. Send detailed traceback to the execution-errors topic.
+                    tb = traceback.format_exc()
                     await notifier.send_message(
                         chat_id=int(config.telegram_chat_id),
                         text=(
                             f"<b>Fatal Worker Error</b>\n"
                             f"Job: <code>{job_id}</code>\n"
-                            f"Exception: <pre>{exc}</pre>"
+                            f"Exception: <pre>{exc}</pre>\n"
+                            f"Traceback:\n<pre>{tb}</pre>"
                         ),
                         topic_id=config.topic_execution_errors,
                     )

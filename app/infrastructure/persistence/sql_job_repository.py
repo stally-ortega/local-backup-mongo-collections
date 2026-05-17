@@ -193,6 +193,7 @@ class SQLJobRepository(IJobRepository):
             requester_telegram_id=orm.requester_telegram_id,
             chat_id=orm.chat_id,
             topic_id=orm.topic_id,
+            status_message_id=orm.status_message_id,
             backup_type=BackupType(orm.backup_type),
             status=JobStatus(orm.status),
             cluster_uri_hash=orm.cluster_uri_hash,
@@ -231,6 +232,7 @@ class SQLJobRepository(IJobRepository):
             requester_telegram_id=job.requester_telegram_id,
             chat_id=job.chat_id,
             topic_id=job.topic_id,
+            status_message_id=job.status_message_id,
             backup_type=job.backup_type.value,
             status=job.status.value,
             cluster_uri_hash=job.cluster_uri_hash,
@@ -252,6 +254,7 @@ class SQLJobRepository(IJobRepository):
         orm.requester_telegram_id = job.requester_telegram_id
         orm.chat_id = job.chat_id
         orm.topic_id = job.topic_id
+        orm.status_message_id = job.status_message_id
         orm.backup_type = job.backup_type.value
         orm.status = job.status.value
         orm.cluster_uri_hash = job.cluster_uri_hash

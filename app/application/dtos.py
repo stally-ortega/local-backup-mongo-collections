@@ -19,6 +19,7 @@ class CreateJobRequest(BaseModel):
     requester_telegram_id: int = Field(..., gt=0)
     chat_id: int | None = None
     topic_id: int | None = None
+    status_message_id: int | None = None
     backup_type: BackupType
     cluster_uri_hash: str = Field(..., min_length=1)
     target_collections: list[CollectionTarget] | None = None
@@ -30,6 +31,7 @@ class RequestBackupDto(BaseModel):
     user: User
     chat_id: int | None = None
     topic_id: int | None = None
+    status_message_id: int | None = None
     backup_type: BackupType
     cluster_uri_hash: str = Field(..., min_length=1)
     target_collections: list[CollectionTarget] | None = None
@@ -56,6 +58,7 @@ class ExecuteBackupDto(BaseModel):
     requester_telegram_id: int | None = None
     chat_id: int | None = None
     topic_id: int | None = None
+    status_message_id: int | None = None
     backup_type: BackupType | None = None
     cluster_uri_hash: str | None = None
     target_collections: list[CollectionTarget] | None = None

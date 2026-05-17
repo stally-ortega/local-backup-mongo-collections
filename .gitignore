@@ -20,6 +20,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.db
 
 # Virtual environments
 .env
@@ -52,6 +53,7 @@ config.json
 config.local.json
 .env.local
 .env.*.local
+virtual_env/
 
 # Testing
 .pytest_cache/

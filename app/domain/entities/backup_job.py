@@ -20,6 +20,7 @@ class BackupJob(BaseModel):
     requester_telegram_id: int = Field(..., gt=0)
     chat_id: int | None = None
     topic_id: int | None = None
+    status_message_id: int | None = None
     backup_type: BackupType
     status: JobStatus = JobStatus.PENDING
     cluster_uri_hash: str = Field(..., min_length=1)
@@ -58,6 +59,7 @@ class BackupJob(BaseModel):
         cluster_uri_hash: str,
         chat_id: int | None = None,
         topic_id: int | None = None,
+        status_message_id: int | None = None,
     ) -> "BackupJob":
         """Factory for a full-cluster backup job."""
         return cls(
@@ -65,6 +67,7 @@ class BackupJob(BaseModel):
             requester_telegram_id=requester_telegram_id,
             chat_id=chat_id,
             topic_id=topic_id,
+            status_message_id=status_message_id,
             backup_type=BackupType.FULL,
             cluster_uri_hash=cluster_uri_hash,
         )
@@ -78,6 +81,7 @@ class BackupJob(BaseModel):
         target_collections: list[CollectionTarget],
         chat_id: int | None = None,
         topic_id: int | None = None,
+        status_message_id: int | None = None,
     ) -> "BackupJob":
         """Factory for a custom (selected collections) backup job."""
         return cls(
@@ -85,6 +89,7 @@ class BackupJob(BaseModel):
             requester_telegram_id=requester_telegram_id,
             chat_id=chat_id,
             topic_id=topic_id,
+            status_message_id=status_message_id,
             backup_type=BackupType.CUSTOM,
             cluster_uri_hash=cluster_uri_hash,
             target_collections=target_collections,

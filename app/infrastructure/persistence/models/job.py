@@ -25,6 +25,7 @@ class JobORM(Base):
     )
     chat_id: Mapped[int | None] = mapped_column(BigInteger)
     topic_id: Mapped[int | None] = mapped_column(BigInteger)
+    status_message_id: Mapped[int | None] = mapped_column(BigInteger)
     backup_type: Mapped[str] = mapped_column(
         String(20),
         nullable=False,

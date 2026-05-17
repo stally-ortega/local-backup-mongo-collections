@@ -96,6 +96,7 @@ class JobManager:
             "requester_telegram_id": job.requester_telegram_id,
             "chat_id": job.chat_id,
             "topic_id": job.topic_id,
+            "status_message_id": job.status_message_id,
             "backup_type": job.backup_type.value,
             "cluster_uri_hash": job.cluster_uri_hash,
         }

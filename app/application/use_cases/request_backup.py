@@ -150,6 +150,7 @@ class RequestBackupUseCase:
                 requester_telegram_id=dto.user.telegram_id,
                 chat_id=dto.chat_id,
                 topic_id=dto.topic_id,
+                status_message_id=dto.status_message_id,
                 backup_type=dto.backup_type,
                 cluster_uri_hash=dto.cluster_uri_hash,
                 target_collections=dto.target_collections,
