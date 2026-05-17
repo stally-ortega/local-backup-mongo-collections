@@ -285,38 +285,3 @@ class TestSQLJobRepositorySave:
         assert found.output_path is not None
         assert found.output_path.name == "archive"
         assert found.output_path.parent.name == "backup"
-
-
-# ---------------------------------------------------------------------------
-# update_status
-# ---------------------------------------------------------------------------
-
-
-class TestSQLJobRepositoryUpdateStatus:
-    @pytest.mark.asyncio
-    async def test_changes_status_and_returns_job(
-        self,
-        repo: SQLJobRepository,
-        db_session: AsyncSession,
-    ) -> None:
-        job = _make_job(job_id="st-job", status=JobStatus.PENDING)
-        await repo.save(job)
-        await db_session.commit()
-
-        result = await repo.update_status("st-job", JobStatus.RUNNING)
-        await db_session.commit()
-
-        assert result is not None
-        assert result.status == JobStatus.RUNNING
-
-        found = await repo.get_by_id("st-job")
-        assert found is not None
-        assert found.status == JobStatus.RUNNING
-
-    @pytest.mark.asyncio
-    async def test_returns_none_for_unknown_job(
-        self,
-        repo: SQLJobRepository,
-    ) -> None:
-        result = await repo.update_status("missing-job", JobStatus.RUNNING)
-        assert result is None

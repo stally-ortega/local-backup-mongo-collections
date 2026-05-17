@@ -95,18 +95,6 @@ class SQLJobRepository(IJobRepository):
         """Rollback the current transaction to discard the identity map."""
         await self._session.rollback()
 
-    async def update_status(self, job_id: str, status: JobStatus) -> BackupJob | None:
-        """Update the status of an existing job."""
-        orm = await self._session.get(JobORM, job_id)
-        if orm is None:
-            return None
-
-        orm.status = status.value
-        await self._session.flush()
-        await self._session.refresh(orm)
-
-        return self._to_entity(orm)
-
     async def get_job_stats(self) -> dict[str, Any]:
         """Return aggregated job statistics computed via SQLAlchemy."""
         now = datetime.utcnow()

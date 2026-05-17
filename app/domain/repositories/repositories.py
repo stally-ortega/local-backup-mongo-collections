@@ -68,10 +68,6 @@ class IJobRepository(Protocol):
         """Discard any in-memory identity map / snapshot so the next query hits the database."""
         ...
 
-    async def update_status(self, job_id: str, status: JobStatus) -> BackupJob | None:
-        """Update the status of an existing job."""
-        ...
-
     async def get_job_stats(self) -> dict[str, Any]:
         """Return aggregated job statistics.
 
