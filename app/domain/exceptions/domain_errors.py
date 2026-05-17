@@ -186,3 +186,15 @@ class PermissionDeniedError(DomainPermissionError):
         details: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message=message, details=details)
+
+
+class UserAlreadyExistsError(DomainError):
+    """Raised when attempting to create a user with an existing telegram_id."""
+
+    def __init__(
+        self,
+        message: str = "User already exists",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message=message, details=details)
+        self.code = "USER_ALREADY_EXISTS"

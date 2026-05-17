@@ -9,7 +9,7 @@ from app.application.services.audit_service import AuditService
 from app.application.services.permission_service import PermissionService
 from app.application.use_cases.add_user import AddUserUseCase
 from app.domain.entities.user import User
-from app.domain.exceptions.domain_errors import DomainPermissionError
+from app.domain.exceptions.domain_errors import DomainPermissionError, UserAlreadyExistsError
 from app.domain.repositories.repositories import IUserRepository
 from app.domain.value_objects.enums import UserRole
 
@@ -73,7 +73,7 @@ class TestAddUserUseCaseExecute:
         mock_audit_service.log_action.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_admin_can_update_existing_user(
+    async def test_admin_cannot_overwrite_existing_user(
         self,
         use_case: AddUserUseCase,
         mock_user_repo: AsyncMock,
@@ -81,7 +81,6 @@ class TestAddUserUseCaseExecute:
     ) -> None:
         existing = User(telegram_id=99, username="alice", role=UserRole.READONLY)
         mock_user_repo.get_by_telegram_id.return_value = existing
-        mock_user_repo.save = AsyncMock()
 
         admin = User(telegram_id=1, username="admin", role=UserRole.ADMIN)
         dto = AddUserDto(
@@ -91,10 +90,11 @@ class TestAddUserUseCaseExecute:
             role=UserRole.DBA,
         )
 
-        result = await use_case.execute(dto)
+        with pytest.raises(UserAlreadyExistsError, match="already exists"):
+            await use_case.execute(dto)
 
-        assert result.is_new is False
-        mock_user_repo.save.assert_awaited_once()
+        mock_user_repo.save.assert_not_called()
+        mock_audit_service.log_action.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_non_admin_cannot_add_user(

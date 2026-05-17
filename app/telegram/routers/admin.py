@@ -25,7 +25,11 @@ from app.application.dtos import (
 )
 from app.domain.entities.backup_job import BackupJob
 from app.domain.entities.user import User
-from app.domain.exceptions.domain_errors import DomainPermissionError, JobNotFoundError
+from app.domain.exceptions.domain_errors import (
+    DomainPermissionError,
+    JobNotFoundError,
+    UserAlreadyExistsError,
+)
 from app.domain.value_objects.enums import UserRole
 from app.infrastructure.logging.structured_logger import get_logger
 from app.telegram.dependencies import (
@@ -332,13 +336,17 @@ async def cmd_auth(
         except DomainPermissionError:
             await message.answer("No tienes permiso para gestionar usuarios.")
             return
+        except UserAlreadyExistsError:
+            await message.answer(
+                f"El usuario <code>{dto.telegram_id}</code> ya existe. "
+                "Usa el listado para modificarlo."
+            )
+            return
         await session.commit()
 
-    status = "nuevo" if result.is_new else "actualizado"
     await message.answer(
         f"✅ Usuario <code>{result.telegram_id}</code> ({result.username}) "
-        f"agregado/actualizado con rol <b>{result.role.value}</b>.\n"
-        f"Estado: {status}."
+        f"agregado con rol <b>{result.role.value}</b>."
     )
 
 

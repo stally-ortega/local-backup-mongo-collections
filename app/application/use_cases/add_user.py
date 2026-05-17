@@ -8,7 +8,7 @@ from app.application.dtos import AddUserDto, AddUserResult
 from app.application.services.audit_service import AuditService
 from app.application.services.permission_service import PermissionService
 from app.domain.entities.user import User
-from app.domain.exceptions.domain_errors import DomainPermissionError
+from app.domain.exceptions.domain_errors import DomainPermissionError, UserAlreadyExistsError
 from app.domain.repositories.repositories import IUserRepository
 
 
@@ -51,7 +51,11 @@ class AddUserUseCase:
             )
 
         existing = await self._user_repository.get_by_telegram_id(dto.telegram_id)
-        is_new = existing is None
+        if existing is not None:
+            raise UserAlreadyExistsError(
+                message=f"User with telegram_id {dto.telegram_id} already exists",
+                details={"telegram_id": dto.telegram_id},
+            )
 
         user = User(
             telegram_id=dto.telegram_id,
@@ -71,7 +75,6 @@ class AddUserUseCase:
                 "target_telegram_id": dto.telegram_id,
                 "target_username": dto.username,
                 "target_role": dto.role.value,
-                "is_new": is_new,
             },
         )
 
@@ -79,5 +82,5 @@ class AddUserUseCase:
             telegram_id=dto.telegram_id,
             username=dto.username,
             role=dto.role,
-            is_new=is_new,
+            is_new=True,
         )
