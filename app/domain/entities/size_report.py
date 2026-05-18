@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 class CollectionSize(BaseModel):
@@ -14,12 +14,6 @@ class CollectionSize(BaseModel):
     collection: str = Field(..., min_length=1)
     size_bytes: int = Field(..., ge=0)
     document_count: int = Field(..., ge=0)
-
-    @field_validator("size_bytes", "document_count", mode="after")
-    @classmethod
-    def _coerce_none_to_zero(cls, value: int | None) -> int:
-        """Treat ``None`` as ``0`` for missing metrics."""
-        return value if value is not None else 0
 
 
 class DatabaseSize(BaseModel):
