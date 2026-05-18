@@ -6,9 +6,9 @@ retention enforcement, and user notification.
 """
 
 import asyncio
+import logging
 import re
 from collections.abc import Awaitable, Callable
-from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 
@@ -31,6 +31,8 @@ from app.domain.exceptions.domain_errors import (
 from app.domain.repositories.repositories import IJobRepository
 from app.domain.value_objects.dtos import CollectionTarget, JobProgress
 from app.domain.value_objects.enums import BackupType, CollectionBackupStatus, JobStatus
+
+logger = logging.getLogger(__name__)
 
 CancelCheck = Callable[[], Awaitable[bool]] | None
 
@@ -225,7 +227,7 @@ class ExecuteBackupUseCase:
             )
 
             await self._notify(job, final_status, completed, failed, total, bytes_processed)
-            await self._apply_retention(final_status)
+            await self._apply_retention(job.id, final_status)
 
             return ExecuteBackupResult(
                 job_id=job.id,
@@ -239,8 +241,10 @@ class ExecuteBackupUseCase:
         finally:
             if self._lock_manager is not None and lock_token is not None:
                 lock_name = f"{self._CLUSTER_LOCK_PREFIX}:{job.cluster_uri_hash}"
-                with suppress(Exception):
+                try:
                     await self._lock_manager.release(lock_name, lock_token)
+                except OSError as exc:
+                    logger.warning("Lock release failed for %s: %s", lock_name, exc)
 
     async def _resolve_targets(self, job: BackupJob) -> list[CollectionTarget]:
         """Return the list of collections to back up for *job*."""
@@ -359,14 +363,20 @@ class ExecuteBackupUseCase:
             summary += f"\nTotal size: {bytes_processed} bytes."
 
         chat_id = job.chat_id or job.requester_telegram_id
-        with suppress(Exception):
+        try:
             await self._notifier.send_message(
                 chat_id=chat_id,
                 text=summary,
                 topic_id=job.topic_id,
             )
+        except (ConnectionError, TimeoutError, OSError) as exc:
+            logger.warning(
+                "Notification failed for job %s: %s",
+                job.id,
+                exc,
+            )
 
-    async def _apply_retention(self, status: JobStatus) -> None:
+    async def _apply_retention(self, job_id: str, status: JobStatus) -> None:
         """Trigger retention cleanup for successful backups.
 
         Retention failures are treated as non-fatal so that a corrupted
@@ -375,5 +385,11 @@ class ExecuteBackupUseCase:
         if status not in {JobStatus.SUCCESS, JobStatus.PARTIAL_SUCCESS}:
             return
 
-        with suppress(Exception):
+        try:
             await self._retention_manager.apply_policy()
+        except OSError as exc:
+            logger.warning(
+                "Retention cleanup failed after job %s: %s",
+                job_id,
+                exc,
+            )
