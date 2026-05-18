@@ -57,6 +57,7 @@ class JobManager:
                 cluster_uri_hash=request.cluster_uri_hash,
                 chat_id=request.chat_id,
                 topic_id=request.topic_id,
+                status_message_id=request.status_message_id,
             )
         else:
             targets = request.target_collections or []
@@ -72,6 +73,7 @@ class JobManager:
                 target_collections=targets,
                 chat_id=request.chat_id,
                 topic_id=request.topic_id,
+                status_message_id=request.status_message_id,
             )
 
         await self._job_repository.save(job)
