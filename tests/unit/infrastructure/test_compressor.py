@@ -1,5 +1,7 @@
 """Unit tests for BackupCompressor."""
 
+import asyncio
+import io
 import tarfile
 from pathlib import Path
 
@@ -101,4 +103,22 @@ class TestVerifyArchive:
         missing = tmp_path / "missing.tar.gz"
 
         result = await compressor.verify_archive(missing)
+        assert result is False
+
+    async def test_returns_false_for_path_traversal(
+        self,
+        compressor: BackupCompressor,
+        tmp_path: Path,
+    ) -> None:
+        archive = tmp_path / "malicious.tar.gz"
+
+        def _create_malicious() -> None:
+            with tarfile.open(archive, "w:gz") as tar:
+                info = tarfile.TarInfo(name="../etc/passwd")
+                info.size = 0
+                tar.addfile(info, io.BytesIO(b""))
+
+        await asyncio.to_thread(_create_malicious)
+
+        result = await compressor.verify_archive(archive)
         assert result is False
