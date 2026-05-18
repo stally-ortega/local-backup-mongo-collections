@@ -22,7 +22,8 @@ fi
 # Install Poetry if not present
 if ! command -v poetry &> /dev/null; then
     echo "Installing Poetry..."
-    curl -sSL https://install.python-poetry.org | python3 -
+    # Pinning version ensures reproducibility and leverages PyPI hash verification.
+    python3 -m pip install --user poetry==1.8.3
     export PATH="$HOME/.local/bin:$PATH"
 fi
 

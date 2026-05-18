@@ -15,7 +15,8 @@ Write-Host "Python found: $pythonVersion"
 $poetryVersion = poetry --version 2> $null
 if (-not $?) {
     Write-Host "Installing Poetry..."
-    (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | python -
+    # Pinning version ensures reproducibility and leverages PyPI hash verification.
+    python -m pip install --user poetry==1.8.3
     $env:PATH = "$env:APPDATA\Python\Scripts;$env:PATH"
 }
 Write-Host "Poetry found: $poetryVersion"
