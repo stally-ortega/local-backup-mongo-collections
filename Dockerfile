@@ -10,6 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
 WORKDIR /app
+ENV PYTHONPATH=/app
 
 RUN pip install --no-cache-dir poetry
 
