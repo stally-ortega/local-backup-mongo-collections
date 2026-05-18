@@ -7,6 +7,9 @@ from typing import Any, cast
 import pytest
 
 from app.application.services.retention_manager import RetentionManager
+from app.domain.entities.backup_job import BackupJob
+from app.domain.repositories.repositories import IJobRepository
+from app.domain.value_objects.enums import JobStatus
 
 
 class _FakeFsUtils:
@@ -67,6 +70,46 @@ class _FakeFsUtils:
 
     async def get_modification_time(self, path: Path) -> datetime:
         return cast("datetime", self._files[path]["mtime"])
+
+
+class _FakeJobRepo(IJobRepository):
+    def __init__(self, jobs: list[BackupJob] | None = None) -> None:
+        self._jobs = jobs or []
+
+    async def get_by_id(self, job_id: str) -> BackupJob | None:
+        for job in self._jobs:
+            if job.id == job_id:
+                return job
+        return None
+
+    async def list_by_user(
+        self,
+        telegram_id: int,
+        status: JobStatus | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> list[BackupJob]:
+        jobs = [j for j in self._jobs if j.requester_telegram_id == telegram_id]
+        if status is not None:
+            jobs = [j for j in jobs if j.status == status]
+        return jobs
+
+    async def list_by_status(
+        self, status: JobStatus, page: int = 1, page_size: int = 50
+    ) -> list[BackupJob]:
+        return [j for j in self._jobs if j.status == status]
+
+    async def save(self, job: BackupJob) -> None:
+        pass
+
+    async def commit(self) -> None:
+        pass
+
+    async def clear_session_cache(self) -> None:
+        pass
+
+    async def get_job_stats(self) -> dict[str, Any]:
+        return {}
 
 
 @pytest.fixture
@@ -432,3 +475,98 @@ class TestEnforceMaxStorage:
         remaining_custom = [p for p in fs._files if "custom" in p.name]
         assert len(remaining_full) >= 1
         assert len(remaining_custom) >= 1
+
+
+class TestRetentionManagerSkipInUse:
+    @pytest.mark.asyncio
+    async def test_skips_file_inside_running_job_output_path(
+        self,
+        fs: _FakeFsUtils,
+        base_path: Path,
+    ) -> None:
+        now = datetime.utcnow()
+        # Old backup inside a running job's output directory.
+        old_file = base_path / "hash" / "job-123" / "backup_full_20250101_120000.tar.gz"
+        fs.seed_file(old_file, size=100, mtime=now - timedelta(weeks=10))
+        # Recent backup outside so minimum_keep allows deletion of the old one.
+        recent_file = base_path / "backup_full_20260101_120000.tar.gz"
+        fs.seed_file(recent_file, size=100, mtime=now)
+
+        running_job = BackupJob.create_full("job-123", 1, "hash")
+        running_job.mark_queued()
+        running_job.mark_running()
+        running_job.output_path = base_path / "hash" / "job-123"
+
+        job_repo = _FakeJobRepo([running_job])
+        manager = RetentionManager(
+            fs_utils=fs,
+            backup_base_path=base_path,
+            retention_full_weeks=4,
+            retention_custom_weeks=2,
+            retention_max_gb=1,
+            job_repository=job_repo,
+        )
+
+        result = await manager.cleanup_old_backups()
+
+        assert old_file not in fs._deleted
+        assert recent_file not in fs._deleted
+        assert any("Skipped deletion" in e for e in result["errors"])
+
+    @pytest.mark.asyncio
+    async def test_deletes_file_when_job_not_running(
+        self,
+        fs: _FakeFsUtils,
+        base_path: Path,
+    ) -> None:
+        now = datetime.utcnow()
+        old_file = base_path / "hash" / "job-456" / "backup_full_20250101_120000.tar.gz"
+        fs.seed_file(old_file, size=100, mtime=now - timedelta(weeks=10))
+        recent_file = base_path / "backup_full_20260101_120000.tar.gz"
+        fs.seed_file(recent_file, size=100, mtime=now)
+
+        success_job = BackupJob.create_full("job-456", 1, "hash")
+        success_job.mark_queued()
+        success_job.mark_running()
+        success_job.mark_success()
+        success_job.output_path = base_path / "hash" / "job-456"
+
+        job_repo = _FakeJobRepo([success_job])
+        manager = RetentionManager(
+            fs_utils=fs,
+            backup_base_path=base_path,
+            retention_full_weeks=4,
+            retention_custom_weeks=2,
+            retention_max_gb=1,
+            job_repository=job_repo,
+        )
+
+        await manager.cleanup_old_backups()
+
+        assert old_file in fs._deleted
+        assert recent_file not in fs._deleted
+
+    @pytest.mark.asyncio
+    async def test_deletes_file_when_no_job_repository(
+        self,
+        fs: _FakeFsUtils,
+        base_path: Path,
+    ) -> None:
+        now = datetime.utcnow()
+        old_file = base_path / "backup_full_20250101_120000.tar.gz"
+        fs.seed_file(old_file, size=100, mtime=now - timedelta(weeks=10))
+        recent_file = base_path / "backup_full_20260101_120000.tar.gz"
+        fs.seed_file(recent_file, size=100, mtime=now)
+
+        manager = RetentionManager(
+            fs_utils=fs,
+            backup_base_path=base_path,
+            retention_full_weeks=4,
+            retention_custom_weeks=2,
+            retention_max_gb=1,
+        )
+
+        await manager.cleanup_old_backups()
+
+        assert old_file in fs._deleted
+        assert recent_file not in fs._deleted

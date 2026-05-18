@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from app.application.ports.ports import IFsUtils
+from app.domain.entities.backup_job import BackupJob
+from app.domain.repositories.repositories import IJobRepository
+from app.domain.value_objects.enums import JobStatus
 
 
 class RetentionManager:
@@ -37,12 +40,14 @@ class RetentionManager:
         retention_full_weeks: int,
         retention_custom_weeks: int,
         retention_max_gb: int,
+        job_repository: IJobRepository | None = None,
     ) -> None:
         self._fs = fs_utils
         self._base_path = backup_base_path
         self._full_weeks = retention_full_weeks
         self._custom_weeks = retention_custom_weeks
         self._max_bytes = retention_max_gb * 1024 * 1024 * 1024
+        self._job_repository = job_repository
 
     async def get_storage_stats(self) -> dict[str, Any]:
         """Return aggregated metrics for the backup storage area."""
@@ -163,7 +168,19 @@ class RetentionManager:
         deleted_count = 0
         reclaimed_bytes = 0
         errors: list[str] = []
+
+        running_jobs: list[BackupJob] = []
+        if self._job_repository is not None:
+            running_jobs = await self._job_repository.list_by_status(
+                JobStatus.RUNNING, page=1, page_size=1000
+            )
+
         for path in to_delete:
+            if self._is_path_in_use(path, running_jobs):
+                errors.append(
+                    f"Skipped deletion of {path}: currently in use by a running backup job"
+                )
+                continue
             try:
                 size = await self._fs.get_folder_size(path)
                 await self._fs.delete(path)
@@ -177,6 +194,18 @@ class RetentionManager:
             "reclaimed_bytes": reclaimed_bytes,
             "errors": errors,
         }
+
+    @staticmethod
+    def _is_path_in_use(path: Path, running_jobs: list[BackupJob]) -> bool:
+        """Return ``True`` when *path* is inside the output directory of a running job."""
+        for job in running_jobs:
+            if job.output_path is not None:
+                try:
+                    path.relative_to(job.output_path)
+                    return True
+                except ValueError:
+                    pass
+        return False
 
     @staticmethod
     def _classify_type(path: Path) -> str:

@@ -109,6 +109,7 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
                     retention_full_weeks=config.retention_full_weeks,
                     retention_custom_weeks=config.retention_custom_weeks,
                     retention_max_gb=config.retention_max_gb,
+                    job_repository=job_repo,
                 )
                 lock_manager = RedisLockManager(aioredis_client)
 
