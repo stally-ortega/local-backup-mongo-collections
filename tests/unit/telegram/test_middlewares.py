@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiogram import Bot
+from aiogram.enums import ChatMemberStatus
 from aiogram.types import Chat, Message, Update
 from aiogram.types import User as TelegramUser
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +22,7 @@ from app.application.services.permission_service import PermissionService
 from app.config import AppConfig
 from app.domain.entities.user import User
 from app.domain.value_objects.enums import UserRole
+from app.infrastructure.telegram.telegram_role_validator import TelegramRoleValidator
 from app.telegram.middlewares import (
     AuditMiddleware,
     AuthMiddleware,
@@ -339,6 +341,65 @@ class TestAuthMiddleware:
     ) -> None:
         mw = AuthMiddleware(session_factory=None)
         result = await mw(mock_handler, _make_message_update(), _make_data())
+        assert result == "handler_result"
+        mock_handler.assert_awaited_once()
+
+    async def test_allows_telegram_admin_via_role_validator(
+        self,
+        mock_handler: AsyncMock,
+        mock_bot: MagicMock,
+    ) -> None:
+        mock_bot.get_chat_member = AsyncMock(
+            return_value=MagicMock(status=ChatMemberStatus.ADMINISTRATOR)
+        )
+        validator = TelegramRoleValidator(
+            bot=mock_bot,
+            chat_id=-100,
+            ttl_seconds=600,
+        )
+        mw = AuthMiddleware(telegram_role_validator=validator)
+        data = _make_data(mock_bot)
+        result = await mw(mock_handler, _make_message_update(user_id=42), data)
+        assert result == "handler_result"
+        assert data["user"].telegram_id == 42
+        assert data["user"].role == UserRole.ADMIN
+        mock_handler.assert_awaited_once()
+
+    async def test_rejects_non_admin_via_role_validator(
+        self,
+        mock_handler: AsyncMock,
+        mock_bot: MagicMock,
+    ) -> None:
+        mock_bot.get_chat_member = AsyncMock(return_value=MagicMock(status=ChatMemberStatus.MEMBER))
+        validator = TelegramRoleValidator(
+            bot=mock_bot,
+            chat_id=-100,
+            ttl_seconds=600,
+        )
+        mw = AuthMiddleware(telegram_role_validator=validator)
+        data = _make_data(mock_bot)
+        result = await mw(mock_handler, _make_message_update(user_id=99), data)
+        assert result is None
+        mock_handler.assert_not_awaited()
+
+    async def test_rejects_on_telegram_api_error_via_role_validator(
+        self,
+        mock_handler: AsyncMock,
+        mock_bot: MagicMock,
+    ) -> None:
+        from aiogram.exceptions import TelegramAPIError
+
+        mock_bot.get_chat_member = AsyncMock(
+            side_effect=TelegramAPIError(method=MagicMock(), message="network")
+        )
+        validator = TelegramRoleValidator(
+            bot=mock_bot,
+            chat_id=-100,
+            ttl_seconds=600,
+        )
+        mw = AuthMiddleware(telegram_role_validator=validator)
+        data = _make_data(mock_bot)
+        result = await mw(mock_handler, _make_message_update(user_id=42), data)
         assert result is None
         mock_handler.assert_not_awaited()
 

@@ -22,6 +22,7 @@ from app.domain.value_objects.enums import UserRole
 from app.infrastructure.logging.structured_logger import get_logger
 from app.infrastructure.persistence.sql_audit_repository import SQLAuditRepository
 from app.infrastructure.persistence.sql_user_repository import SQLUserRepository
+from app.infrastructure.telegram.telegram_role_validator import TelegramRoleValidator
 from app.telegram.middlewares._utils import (
     extract_context,
     resolve_topic,
@@ -38,10 +39,12 @@ class AuthMiddleware(BaseMiddleware):
         session_factory: async_sessionmaker[AsyncSession] | None = None,
         audit_service: AuditService | None = None,
         config: AppConfig | None = None,
+        telegram_role_validator: TelegramRoleValidator | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._audit_service = audit_service
         self._config = config
+        self._telegram_role_validator = telegram_role_validator
         self._logger = get_logger(__name__)
 
     async def __call__(
@@ -50,13 +53,28 @@ class AuthMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        if self._session_factory is None:
-            return None
-
         ctx = extract_context(event)
         if ctx.user_id is None:
             self._logger.warning("missing_user_id_in_event", update_id=ctx.update_id)
             return None
+
+        # Primary auth source: Telegram-native group roles (creator / administrator).
+        if self._telegram_role_validator is not None:
+            is_admin = await self._telegram_role_validator.is_admin(ctx.user_id)
+            if is_admin:
+                data["user"] = User(
+                    telegram_id=ctx.user_id,
+                    role=UserRole.ADMIN,
+                    is_active=True,
+                )
+                return await handler(event, data)
+            await self._reply_unauthorized(ctx, data)
+            await self._log_denied_from_ctx(ctx)
+            return None
+
+        # Fallback: local whitelist when the Telegram validator is not configured.
+        if self._session_factory is None:
+            return await handler(event, data)
 
         async with self._session_factory() as session:
             user_repo = SQLUserRepository(session)
@@ -104,3 +122,11 @@ class AuthMiddleware(BaseMiddleware):
             topic=topic,
             result="DENIED",
         )
+
+    async def _log_denied_from_ctx(self, ctx: Any) -> None:
+        """Best-effort audit log when the SQL session may not be available."""
+        if self._session_factory is None:
+            self._logger.warning("auth_denied_no_session", user_id=ctx.user_id)
+            return
+        async with self._session_factory() as session:
+            await self._log_denied(session, ctx)
