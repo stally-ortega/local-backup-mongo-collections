@@ -8,6 +8,7 @@ import logging
 import uuid
 
 import redis.asyncio as aioredis
+from redis.exceptions import RedisError
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ class RedisLockManager:
                     resource,
                 )
             return released
-        except Exception as exc:
+        except RedisError as exc:
             logger.warning("Lock release error %s: %s", resource, exc)
             return False
 
@@ -81,6 +82,6 @@ class RedisLockManager:
         """Return ``True`` when *resource* currently holds a lock."""
         try:
             return bool(await self._client.exists(resource))
-        except Exception as exc:
+        except RedisError as exc:
             logger.warning("Lock check error %s: %s", resource, exc)
             return False

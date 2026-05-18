@@ -4,6 +4,7 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+from rq.exceptions import NoSuchJobError
 
 from app.domain.value_objects.enums import JobStatus
 from app.infrastructure.queue.redis_connection import RedisConnection
@@ -88,7 +89,7 @@ class TestGetStatus:
         mock_fetch: MagicMock,
         queue: RQJobQueue,
     ) -> None:
-        mock_fetch.return_value = None
+        mock_fetch.side_effect = NoSuchJobError("rq-job-missing")
 
         status = await queue.get_status("rq-job-missing")
         assert status is None
@@ -128,7 +129,7 @@ class TestCancelJob:
         mock_fetch: MagicMock,
         queue: RQJobQueue,
     ) -> None:
-        mock_fetch.return_value = None
+        mock_fetch.side_effect = NoSuchJobError("rq-job-missing")
 
         result = await queue.cancel_job("rq-job-missing")
         assert result is False
@@ -139,7 +140,7 @@ class TestCancelJob:
         mock_fetch: MagicMock,
         queue: RQJobQueue,
     ) -> None:
-        mock_fetch.side_effect = ConnectionError("redis down")
+        mock_fetch.side_effect = NoSuchJobError("rq-job-4")
 
         result = await queue.cancel_job("rq-job-4")
         assert result is False
@@ -174,7 +175,7 @@ class TestRetryJob:
         mock_fetch: MagicMock,
         queue: RQJobQueue,
     ) -> None:
-        mock_fetch.return_value = None
+        mock_fetch.side_effect = NoSuchJobError("rq-job-missing")
 
         result = await queue.retry_job("rq-job-missing")
         assert result is None
@@ -185,7 +186,7 @@ class TestRetryJob:
         mock_fetch: MagicMock,
         queue: RQJobQueue,
     ) -> None:
-        mock_fetch.side_effect = ConnectionError("redis down")
+        mock_fetch.side_effect = NoSuchJobError("rq-job-6")
 
         result = await queue.retry_job("rq-job-6")
         assert result is None

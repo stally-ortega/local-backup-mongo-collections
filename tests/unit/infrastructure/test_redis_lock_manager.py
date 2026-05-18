@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app.infrastructure.queue.redis_lock_manager import RedisLockManager
 
@@ -75,7 +76,7 @@ class TestRelease:
         manager: RedisLockManager,
         redis_client: MagicMock,
     ) -> None:
-        redis_client.eval.side_effect = ConnectionError("redis down")
+        redis_client.eval.side_effect = RedisConnectionError("redis down")
 
         result = await manager.release("backup:global", "token-123")
 
@@ -110,7 +111,7 @@ class TestIsLocked:
         manager: RedisLockManager,
         redis_client: MagicMock,
     ) -> None:
-        redis_client.exists.side_effect = ConnectionError("redis down")
+        redis_client.exists.side_effect = RedisConnectionError("redis down")
 
         result = await manager.is_locked("backup:global")
 

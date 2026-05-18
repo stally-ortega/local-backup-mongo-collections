@@ -252,7 +252,7 @@ class MongodumpBackupEngine(IBackupEngine):
             )
             client.admin.command("ping")
             return True
-        except Exception as exc:
+        except pymongo.errors.PyMongoError as exc:
             logger.warning(
                 "MongoDB ping failed (hash=%s): %s",
                 cluster_uri_hash,

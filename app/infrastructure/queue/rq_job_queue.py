@@ -8,6 +8,7 @@ import logging
 from datetime import timedelta
 
 import rq
+from rq.exceptions import NoSuchJobError
 from rq.job import Job as RQJob
 from rq.serializers import JSONSerializer
 
@@ -116,7 +117,7 @@ class RQJobQueue(IJobQueue):
                 )
                 return rq_status
             return domain_status.value
-        except Exception:
+        except NoSuchJobError:
             return None
 
     async def cancel_job(self, queue_job_id: str) -> bool:
@@ -129,7 +130,7 @@ class RQJobQueue(IJobQueue):
             job.cancel()
             logger.info("Cancelled RQ job %s", queue_job_id)
             return True
-        except Exception as exc:
+        except NoSuchJobError as exc:
             logger.warning("Failed to cancel RQ job %s: %s", queue_job_id, exc)
             return False
 
@@ -157,6 +158,6 @@ class RQJobQueue(IJobQueue):
                 retry_count,
             )
             return str(new_job.id)
-        except Exception as exc:
+        except NoSuchJobError as exc:
             logger.warning("Failed to retry RQ job %s: %s", queue_job_id, exc)
             return None
