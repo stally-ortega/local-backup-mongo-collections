@@ -55,6 +55,9 @@ class _FakeJobRepo:
     ) -> list[BackupJob]:
         return []
 
+    async def count_by_status(self, status: JobStatus) -> int:
+        return 0
+
     async def save(self, job: BackupJob) -> None:
         pass
 
@@ -139,6 +142,12 @@ class TestJobRepositoryProtocol:
         repo: IJobRepository = _FakeJobRepo()
         jobs = await repo.list_by_status(JobStatus.PENDING)
         assert jobs == []
+
+    @pytest.mark.asyncio
+    async def test_count_by_status(self) -> None:
+        repo: IJobRepository = _FakeJobRepo()
+        count = await repo.count_by_status(JobStatus.RUNNING)
+        assert count == 0
 
 
 class TestAuditRepositoryProtocol:

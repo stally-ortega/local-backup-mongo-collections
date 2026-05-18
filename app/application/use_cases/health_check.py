@@ -85,5 +85,4 @@ class HealthCheckUseCase:
     async def _count_running_jobs(self) -> int:
         if self._job_repo is None:
             return 0
-        jobs = await self._job_repo.list_by_status(JobStatus.RUNNING, page=1, page_size=1_000)
-        return len(jobs)
+        return await self._job_repo.count_by_status(JobStatus.RUNNING)

@@ -195,6 +195,34 @@ class TestSQLJobRepositoryListByStatus:
 # ---------------------------------------------------------------------------
 
 
+class TestSQLJobRepositoryCountByStatus:
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_no_jobs_match(
+        self,
+        repo: SQLJobRepository,
+        db_session: AsyncSession,
+    ) -> None:
+        await repo.save(_make_job(job_id="q1", status=JobStatus.QUEUED))
+        await db_session.commit()
+
+        count = await repo.count_by_status(JobStatus.RUNNING)
+        assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_returns_correct_count(
+        self,
+        repo: SQLJobRepository,
+        db_session: AsyncSession,
+    ) -> None:
+        await repo.save(_make_job(job_id="r1", status=JobStatus.RUNNING))
+        await repo.save(_make_job(job_id="r2", status=JobStatus.RUNNING))
+        await repo.save(_make_job(job_id="q1", status=JobStatus.QUEUED))
+        await db_session.commit()
+
+        count = await repo.count_by_status(JobStatus.RUNNING)
+        assert count == 2
+
+
 class TestSQLJobRepositorySave:
     @pytest.mark.asyncio
     async def test_inserts_new_job(

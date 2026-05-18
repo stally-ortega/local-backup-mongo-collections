@@ -78,6 +78,13 @@ class SQLJobRepository(IJobRepository):
         )
         return [self._to_entity(row) for row in result.scalars().all()]
 
+    async def count_by_status(self, status: JobStatus) -> int:
+        """Return the total number of jobs in the supplied status."""
+        result = await self._session.scalar(
+            select(func.count()).select_from(JobORM).where(JobORM.status == status.value)
+        )
+        return result or 0
+
     async def save(self, job: BackupJob) -> None:
         """Persist *job*, inserting or updating depending on existence."""
         existing = await self._session.execute(select(JobORM).where(JobORM.id == job.id))

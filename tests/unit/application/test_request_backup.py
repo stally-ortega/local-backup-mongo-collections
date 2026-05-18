@@ -107,6 +107,9 @@ class _FakeJobRepo:
     ) -> list[BackupJob]:
         return [job for job in self._jobs.values() if job.status == status]
 
+    async def count_by_status(self, status: JobStatus) -> int:
+        return len([job for job in self._jobs.values() if job.status == status])
+
     async def save(self, job: BackupJob) -> None:
         self._jobs[job.id] = job
 

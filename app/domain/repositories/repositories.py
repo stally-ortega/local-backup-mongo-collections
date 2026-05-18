@@ -64,6 +64,10 @@ class IJobRepository(Protocol):
         """Return all jobs in the supplied status."""
         ...
 
+    async def count_by_status(self, status: JobStatus) -> int:
+        """Return the total number of jobs in the supplied status."""
+        ...
+
     async def save(self, job: BackupJob) -> None:
         """Persist a new or updated job."""
         ...
