@@ -1,6 +1,7 @@
 """User entity representing a Telegram operator in the platform."""
 
 from datetime import datetime, timezone
+from types import MappingProxyType
 from typing import ClassVar
 
 from pydantic import BaseModel, Field
@@ -24,26 +25,34 @@ class User(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Role-to-command mapping (extendable without code changes).
-    _COMMAND_PERMISSIONS: ClassVar[dict[str, frozenset[UserRole]]] = {
-        "BACKUP": frozenset({UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR}),
-        "SIZE_QUERY": frozenset(
-            {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY}
-        ),
-        "CANCEL_JOB": frozenset({UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR}),
-        "LIST_JOBS": frozenset(
-            {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY}
-        ),
-        "MANAGE_USERS": frozenset({UserRole.ADMIN}),
-    }
+    _COMMAND_PERMISSIONS: ClassVar[MappingProxyType[str, frozenset[UserRole]]] = MappingProxyType(
+        {
+            "BACKUP": frozenset({UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR}),
+            "SIZE_QUERY": frozenset(
+                {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY}
+            ),
+            "CANCEL_JOB": frozenset({UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR}),
+            "LIST_JOBS": frozenset(
+                {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY}
+            ),
+            "MANAGE_USERS": frozenset({UserRole.ADMIN}),
+        }
+    )
 
-    _TOPIC_PERMISSIONS: ClassVar[dict[TopicType, frozenset[UserRole]]] = {
-        TopicType.BACKUP_REQUESTS: frozenset({UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR}),
-        TopicType.SIZE_ASK: frozenset(
-            {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY}
-        ),
-        TopicType.EXECUTION_ERRORS: frozenset({UserRole.ADMIN, UserRole.DBA}),
-        TopicType.ADMIN: frozenset({UserRole.ADMIN}),
-    }
+    _TOPIC_PERMISSIONS: ClassVar[MappingProxyType[TopicType, frozenset[UserRole]]] = (
+        MappingProxyType(
+            {
+                TopicType.BACKUP_REQUESTS: frozenset(
+                    {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR}
+                ),
+                TopicType.SIZE_ASK: frozenset(
+                    {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY}
+                ),
+                TopicType.EXECUTION_ERRORS: frozenset({UserRole.ADMIN, UserRole.DBA}),
+                TopicType.ADMIN: frozenset({UserRole.ADMIN}),
+            }
+        )
+    )
 
     def model_post_init(self, __context: object) -> None:
         self.__dict__["_initialized"] = True

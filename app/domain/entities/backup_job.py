@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
+from types import MappingProxyType
 from typing import ClassVar
 
 from pydantic import BaseModel, Field
@@ -40,21 +41,25 @@ class BackupJob(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Finite-state-machine adjacency list.
-    _VALID_TRANSITIONS: ClassVar[dict[JobStatus, frozenset[JobStatus]]] = {
-        JobStatus.PENDING: frozenset({JobStatus.QUEUED, JobStatus.CANCELLED}),
-        JobStatus.QUEUED: frozenset({JobStatus.RUNNING, JobStatus.CANCELLED}),
-        JobStatus.RUNNING: frozenset(
+    _VALID_TRANSITIONS: ClassVar[MappingProxyType[JobStatus, frozenset[JobStatus]]] = (
+        MappingProxyType(
             {
-                JobStatus.SUCCESS,
-                JobStatus.FAILED,
-                JobStatus.PARTIAL_SUCCESS,
-                JobStatus.CANCELLED,
+                JobStatus.PENDING: frozenset({JobStatus.QUEUED, JobStatus.CANCELLED}),
+                JobStatus.QUEUED: frozenset({JobStatus.RUNNING, JobStatus.CANCELLED}),
+                JobStatus.RUNNING: frozenset(
+                    {
+                        JobStatus.SUCCESS,
+                        JobStatus.FAILED,
+                        JobStatus.PARTIAL_SUCCESS,
+                        JobStatus.CANCELLED,
+                    }
+                ),
+                JobStatus.CANCELLED: frozenset(),
+                JobStatus.FAILED: frozenset(),
+                JobStatus.PARTIAL_SUCCESS: frozenset(),
             }
-        ),
-        JobStatus.CANCELLED: frozenset(),
-        JobStatus.FAILED: frozenset(),
-        JobStatus.PARTIAL_SUCCESS: frozenset(),
-    }
+        )
+    )
 
     @classmethod
     def create_full(
