@@ -46,13 +46,6 @@ class SizeQueryService:
         page_size:
             Items per page (clamped between 1 and 50).
         """
-        if page < 1:
-            page = 1
-        if page_size < 1:
-            page_size = 1
-        if page_size > 50:
-            page_size = 50
-
         report = await self._mongo_metadata.get_size_stats(cluster_uri_hash)
         collections = report.collections
 
