@@ -102,6 +102,6 @@ class TestSizeQueryServiceCollections:
     async def test_get_collection_sizes_oversized_page_size_clamped(
         self, service: SizeQueryService
     ) -> None:
-        # page_size > 200 should be clamped to 200
+        # page_size > 50 should be clamped to 50
         cols = await service.get_collection_sizes("hash123", page=1, page_size=999)
         assert len(cols) == 3  # only 3 exist, but clamp should not affect result here

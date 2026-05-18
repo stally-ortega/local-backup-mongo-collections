@@ -104,7 +104,7 @@ class QuerySizeDto(BaseModel):
     cluster_uri_hash: str = Field(..., min_length=1)
     database_name: str | None = None
     page: int = Field(default=1, ge=1)
-    page_size: int = Field(default=50, ge=1, le=200)
+    page_size: int = Field(default=50, ge=1, le=50)
     topic: str = "SIZE_ASK"
     command: str | None = None
 
