@@ -59,11 +59,17 @@ class JobManager:
                 topic_id=request.topic_id,
             )
         else:
+            targets = request.target_collections or []
+            if not targets:
+                raise JobError(
+                    message="Custom backup requires at least one target collection",
+                    details={"backup_type": request.backup_type.value},
+                )
             job = BackupJob.create_custom(
                 job_id=job_id,
                 requester_telegram_id=request.requester_telegram_id,
                 cluster_uri_hash=request.cluster_uri_hash,
-                target_collections=request.target_collections or [],
+                target_collections=targets,
                 chat_id=request.chat_id,
                 topic_id=request.topic_id,
             )

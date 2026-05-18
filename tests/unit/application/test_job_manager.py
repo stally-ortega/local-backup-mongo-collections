@@ -205,6 +205,18 @@ class TestJobManagerCreateJob:
         assert len(job.target_collections) == 1
         assert job.target_collections[0].database == "db1"
 
+    @pytest.mark.asyncio
+    async def test_create_custom_job_without_targets_raises(self, job_manager: JobManager) -> None:
+        request = CreateJobRequest(
+            requester_telegram_id=7,
+            backup_type=BackupType.CUSTOM,
+            cluster_uri_hash="hash789",
+            target_collections=[],
+        )
+
+        with pytest.raises(JobError, match="at least one target collection"):
+            await job_manager.create_job(request)
+
 
 class TestJobManagerEnqueueJob:
     @pytest.mark.asyncio
