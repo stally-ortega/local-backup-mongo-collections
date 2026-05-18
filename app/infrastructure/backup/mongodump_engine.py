@@ -155,11 +155,16 @@ class MongodumpBackupEngine(IBackupEngine):
             cmd = [
                 binary,
                 f"--config={config_path}",
-                "--ssl",
                 f"--db={database}",
                 f"--collection={collection}",
                 f"--out={output_path}",
             ]
+            if (
+                self._uri.startswith("mongodb+srv://")
+                or "tls=true" in self._uri
+                or "ssl=true" in self._uri
+            ):
+                cmd.append("--ssl")
 
             logger.info(
                 "Starting mongodump for %s.%s (timeout=%.0fs)",

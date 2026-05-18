@@ -210,8 +210,9 @@ class TestBackupCollectionInjection:
         cmd = mock_subprocess.call_args[0]
         assert any(arg == f"--db={malicious_db}" for arg in cmd)
         assert any(arg == f"--collection={malicious_col}" for arg in cmd)
-        # Ensure the number of positional args matches exactly 6 (no extra shell splitting)
-        assert len(cmd) == 6
+        # Ensure the number of positional args matches exactly 5 (no extra shell splitting).
+        # --ssl is omitted for mongodb://localhost because TLS is not required.
+        assert len(cmd) == 5
 
 
 class TestValidateNames:

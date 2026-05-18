@@ -5,6 +5,7 @@ injectable design that mirrors :class:`~app.infrastructure.mongo.mongo_connectio
 """
 
 import logging
+from typing import Any
 
 import redis
 
@@ -74,12 +75,21 @@ class RedisConnection:
             logger.warning("RedisConnection already open; recreating client")
             self.close()
 
+        from urllib.parse import urlparse
+
+        parsed = urlparse(self._redis_url)
+        kwargs: dict[str, Any] = {
+            "max_connections": self._max_connections,
+            "socket_timeout": self._socket_timeout,
+            "socket_connect_timeout": self._socket_connect_timeout,
+            "decode_responses": True,
+        }
+        if parsed.scheme == "rediss":
+            kwargs["ssl_cert_reqs"] = "required"
+
         pool = redis.ConnectionPool.from_url(
             self._redis_url,
-            max_connections=self._max_connections,
-            socket_timeout=self._socket_timeout,
-            socket_connect_timeout=self._socket_connect_timeout,
-            decode_responses=True,
+            **kwargs,
         )
         self._client = redis.Redis(connection_pool=pool)
         logger.debug("Redis client created for %s", self._url_masked)
