@@ -3,6 +3,7 @@
 Uses a ``fakeredis``-style mock so that no real Redis server is required.
 """
 
+import asyncio
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -196,3 +197,20 @@ class TestReset:
             )
             is True
         )
+
+
+class TestConcurrency:
+    @pytest.mark.asyncio
+    async def test_concurrent_increments_remain_atomic(
+        self,
+        repo: RedisRateLimitRepository,
+    ) -> None:
+        """Simulate a race: many coroutines increment the same key concurrently.
+
+        The Lua-script mock is synchronous, so the final count must equal
+        the number of coroutines exactly (no lost updates).
+        """
+        coros = [repo.increment(1, "BACKUP", window_seconds=60) for _ in range(50)]
+        results = await asyncio.gather(*coros)
+        assert results[-1] == 50
+        assert max(results) == 50
