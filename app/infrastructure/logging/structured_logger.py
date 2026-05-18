@@ -40,7 +40,7 @@ def _make_file_handler(
     level: int = logging.DEBUG,
 ) -> logging.handlers.TimedRotatingFileHandler:
     """Create a daily-rotating file handler formatted by structlog."""
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
 
     handler = logging.handlers.TimedRotatingFileHandler(
         filename=str(path),
@@ -50,6 +50,11 @@ def _make_file_handler(
         encoding="utf-8",
     )
     handler.setLevel(level)
+
+    # Harden log file permissions (no-op on Windows, restrictive on Unix).
+    if not path.exists():
+        path.write_text("")
+    os.chmod(path, 0o600)
 
     if json_format:
         renderer: Any = structlog.processors.JSONRenderer()

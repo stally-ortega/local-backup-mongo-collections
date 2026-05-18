@@ -2,6 +2,8 @@
 
 import json
 import logging
+import os
+import stat
 from collections.abc import Generator
 from pathlib import Path
 
@@ -187,3 +189,28 @@ class TestCorrelationId:
         assert len(lines) == 2
         second = json.loads(lines[1])
         assert "correlation_id" not in second
+
+
+class TestLogPermissions:
+    @pytest.mark.skipif(os.name == "nt", reason="Unix permission model only")
+    def test_log_directory_created_with_restrictive_permissions(self, tmp_path: Path) -> None:
+        log_dir = tmp_path / "secure_logs"
+        configure_logging(log_dir=log_dir, json_format=True)
+
+        mode = stat.S_IMODE(log_dir.stat().st_mode)
+        assert mode == 0o700
+
+    @pytest.mark.skipif(os.name == "nt", reason="Unix permission model only")
+    def test_log_file_created_with_restrictive_permissions(self, tmp_path: Path) -> None:
+        configure_logging(log_dir=tmp_path, json_format=True)
+        logger = get_logger("test_perms")
+        logger.info("perm_event")
+
+        for handler in logging.getLogger().handlers:
+            if hasattr(handler, "flush"):
+                handler.flush()
+
+        ops_log = tmp_path / "ops.log"
+        assert ops_log.exists()
+        mode = stat.S_IMODE(ops_log.stat().st_mode)
+        assert mode == 0o600
