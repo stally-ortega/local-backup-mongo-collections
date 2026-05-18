@@ -4,6 +4,7 @@ import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pymongo
 import pytest
 
 from app.domain.exceptions.domain_errors import BackupEngineError
@@ -55,6 +56,8 @@ class TestBackupCollectionHappyPath:
         mock_subprocess.assert_called_once()
         cmd = mock_subprocess.call_args[0]
         assert cmd[0] == "/usr/bin/mongodump"
+        assert any(arg.startswith("--config=") for arg in cmd)
+        assert not any(arg.startswith("--uri=") for arg in cmd)
         assert "--db=mydb" in cmd
         assert "--collection=mycol" in cmd
 
@@ -194,7 +197,7 @@ class TestBackupCollectionInjection:
         mock_proc.wait = AsyncMock(return_value=0)
         mock_subprocess.return_value = mock_proc
 
-        malicious_db = "mydb --eval db.dropDatabase()"
+        malicious_db = "mydb --eval db_dropDatabase()"
         malicious_col = "mycol; DROP TABLE users"
         db_dir = tmp_path / malicious_db
         db_dir.mkdir()
@@ -270,13 +273,17 @@ class TestValidateNames:
     async def test_system_prefix_database_name_raises(
         self, engine: MongodumpBackupEngine, tmp_path: Path
     ) -> None:
-        with pytest.raises(BackupEngineError, match="cannot start with 'system.'"):
+        # Dots are forbidden in database names, so "system.users" is rejected
+        # for the dot before the prefix check is reached.
+        with pytest.raises(BackupEngineError, match="forbidden character"):
             await engine.backup_collection("system.users", "mycol", tmp_path)
 
     async def test_system_prefix_collection_name_raises(
         self, engine: MongodumpBackupEngine, tmp_path: Path
     ) -> None:
-        with pytest.raises(BackupEngineError, match="cannot start with 'system.'"):
+        # Dots are forbidden in collection names (conservative validation),
+        # so "system.indexes" is rejected for the dot before the prefix check.
+        with pytest.raises(BackupEngineError, match="forbidden character"):
             await engine.backup_collection("mydb", "system.indexes", tmp_path)
 
     async def test_database_name_too_long_raises(
@@ -348,7 +355,9 @@ class TestValidateConnection:
         engine: MongodumpBackupEngine,
     ) -> None:
         mock_client = MagicMock()
-        mock_client.admin.command = MagicMock(side_effect=ConnectionError("refused"))
+        mock_client.admin.command = MagicMock(
+            side_effect=pymongo.errors.ConnectionFailure("refused")
+        )
         mock_client_cls.return_value = mock_client
 
         result = await engine.validate_connection("hash123")

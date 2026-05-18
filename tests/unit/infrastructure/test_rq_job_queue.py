@@ -1,10 +1,12 @@
 """Unit tests for RQJobQueue."""
 
 from datetime import timedelta
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 from rq.exceptions import NoSuchJobError
+from rq.serializers import JSONSerializer
 
 from app.domain.value_objects.enums import JobStatus
 from app.infrastructure.queue.redis_connection import RedisConnection
@@ -190,3 +192,25 @@ class TestRetryJob:
 
         result = await queue.retry_job("rq-job-6")
         assert result is None
+
+
+class TestSerializerSafety:
+    """Verify JSONSerializer is configured to mitigate pickle deserialization RCE (M24)."""
+
+    def test_queue_uses_json_serializer(self, queue: RQJobQueue) -> None:
+        # RQ stores the serializer class, not an instance.
+        assert queue._queue.serializer is JSONSerializer  # type: ignore[comparison-overlap]
+
+    def test_json_serializer_roundtrips_dict(self, queue: RQJobQueue) -> None:
+        payload: dict[str, Any] = {"job_id": "abc", "data": {"nested": [1, 2, 3]}}
+        serialized = queue._queue.serializer.dumps(payload)
+        # JSON bytes should be readable ASCII/UTF-8, not pickle binary.
+        assert b"{" in serialized
+        deserialized = queue._queue.serializer.loads(serialized)
+        assert deserialized == payload
+
+    def test_json_serializer_rejects_pickle_payload(self, queue: RQJobQueue) -> None:
+        # A pickle payload starts with a binary protocol marker.
+        pickle_like = b"\x80\x04\x95\x00\x00\x00\x00\x00\x00\x00\x8c\x08__main__"
+        with pytest.raises(ValueError):
+            queue._queue.serializer.loads(pickle_like)

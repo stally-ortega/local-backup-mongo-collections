@@ -7,7 +7,10 @@ structured errors via :class:`~app.domain.exceptions.domain_errors.BackupEngineE
 
 import asyncio
 import logging
+import os
 import shutil
+import tempfile
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -143,80 +146,90 @@ class MongodumpBackupEngine(IBackupEngine):
         self._validate_name(database, "database")
         self._validate_name(collection, "collection")
 
-        cmd = [
-            binary,
-            f"--uri={self._uri}",
-            "--ssl",
-            f"--db={database}",
-            f"--collection={collection}",
-            f"--out={output_path}",
-        ]
-
-        logger.info(
-            "Starting mongodump for %s.%s (timeout=%.0fs)",
-            database,
-            collection,
-            self._dump_timeout,
-        )
-
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-
-        stdout_data: bytes = b""
-        stderr_data: bytes = b""
-
+        config_path: str | None = None
         try:
-            stdout_data, stderr_data = await asyncio.wait_for(
-                self._drain_streams(proc),
-                timeout=self._dump_timeout,
-            )
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            raise BackupEngineError(
-                message=f"mongodump timed out after {self._dump_timeout}s "
-                f"for {database}.{collection}",
-                details={
-                    "database": database,
-                    "collection": collection,
-                    "timeout_seconds": self._dump_timeout,
-                },
-            ) from None
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as cfg:
+                cfg.write(f"uri: {self._uri!r}\n")
+                config_path = cfg.name
 
-        if proc.returncode != 0:
-            stderr_text = stderr_data.decode("utf-8", errors="replace").strip()
-            logger.error("mongodump failed: %s", stderr_text)
-            raise BackupEngineError(
-                message=f"mongodump failed for {database}.{collection}",
-                details={
-                    "database": database,
-                    "collection": collection,
-                    "returncode": proc.returncode,
-                    "stderr": stderr_text,
-                },
+            cmd = [
+                binary,
+                f"--config={config_path}",
+                "--ssl",
+                f"--db={database}",
+                f"--collection={collection}",
+                f"--out={output_path}",
+            ]
+
+            logger.info(
+                "Starting mongodump for %s.%s (timeout=%.0fs)",
+                database,
+                collection,
+                self._dump_timeout,
             )
 
-        # Post-backup validation: ensure the BSON file exists and is non-empty.
-        dump_file = output_path / database / f"{collection}.bson"
-        size_bytes = await self._validate_dump_file(dump_file, database, collection)
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
 
-        logger.info(
-            "mongodump completed for %s.%s -> %s (%d bytes)",
-            database,
-            collection,
-            dump_file,
-            size_bytes,
-        )
+            stdout_data: bytes = b""
+            stderr_data: bytes = b""
 
-        return CollectionTarget(
-            database=database,
-            collection=collection,
-            status=CollectionBackupStatus.SUCCESS,
-            size_bytes=size_bytes,
-        )
+            try:
+                stdout_data, stderr_data = await asyncio.wait_for(
+                    self._drain_streams(proc),
+                    timeout=self._dump_timeout,
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                raise BackupEngineError(
+                    message=f"mongodump timed out after {self._dump_timeout}s "
+                    f"for {database}.{collection}",
+                    details={
+                        "database": database,
+                        "collection": collection,
+                        "timeout_seconds": self._dump_timeout,
+                    },
+                ) from None
+
+            if proc.returncode != 0:
+                stderr_text = stderr_data.decode("utf-8", errors="replace").strip()
+                logger.error("mongodump failed: %s", stderr_text)
+                raise BackupEngineError(
+                    message=f"mongodump failed for {database}.{collection}",
+                    details={
+                        "database": database,
+                        "collection": collection,
+                        "returncode": proc.returncode,
+                        "stderr": stderr_text,
+                    },
+                )
+
+            # Post-backup validation: ensure the BSON file exists and is non-empty.
+            dump_file = output_path / database / f"{collection}.bson"
+            size_bytes = await self._validate_dump_file(dump_file, database, collection)
+
+            logger.info(
+                "mongodump completed for %s.%s -> %s (%d bytes)",
+                database,
+                collection,
+                dump_file,
+                size_bytes,
+            )
+
+            return CollectionTarget(
+                database=database,
+                collection=collection,
+                status=CollectionBackupStatus.SUCCESS,
+                size_bytes=size_bytes,
+            )
+        finally:
+            if config_path is not None:
+                with suppress(OSError):
+                    os.unlink(config_path)
 
     async def get_version(self) -> str:
         """Return the ``mongodump --version`` string.
