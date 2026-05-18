@@ -5,6 +5,7 @@ Persists structured audit entries via :class:`~app.domain.repositories.repositor
 
 from typing import Any
 
+from app.application.dtos import UserPrincipalDto
 from app.domain.entities.audit_log import AuditLog
 from app.domain.entities.user import User
 from app.domain.repositories.repositories import IAuditRepository
@@ -19,7 +20,7 @@ class AuditService:
     async def log_action(
         self,
         action: str,
-        user: User,
+        user: User | UserPrincipalDto,
         *,
         topic: str = "GENERAL",
         command: str | None = None,

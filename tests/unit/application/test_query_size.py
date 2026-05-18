@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from app.application.dtos import QuerySizeDto, QuerySizeResult
+from app.application.dtos import QuerySizeDto, QuerySizeResult, UserPrincipalDto
 from app.application.services.audit_service import AuditService
 from app.application.services.size_query_service import SizeQueryService
 from app.application.use_cases.query_size import QuerySizeUseCase
@@ -107,7 +107,7 @@ class TestQuerySizeClusterScope:
         admin_user: User,
     ) -> None:
         dto = QuerySizeDto(
-            user=admin_user,
+            user=UserPrincipalDto.from_user(admin_user),
             scope="cluster",
             cluster_uri_hash="hash123",
         )
@@ -130,7 +130,7 @@ class TestQuerySizeClusterScope:
         admin_user: User,
     ) -> None:
         dto = QuerySizeDto(
-            user=admin_user,
+            user=UserPrincipalDto.from_user(admin_user),
             scope="cluster",
             cluster_uri_hash="hash123",
         )
@@ -151,7 +151,7 @@ class TestQuerySizeDatabaseScope:
         admin_user: User,
     ) -> None:
         dto = QuerySizeDto(
-            user=admin_user,
+            user=UserPrincipalDto.from_user(admin_user),
             scope="database",
             cluster_uri_hash="hash123",
         )
@@ -173,7 +173,7 @@ class TestQuerySizeCollectionScope:
         admin_user: User,
     ) -> None:
         dto = QuerySizeDto(
-            user=admin_user,
+            user=UserPrincipalDto.from_user(admin_user),
             scope="collection",
             cluster_uri_hash="hash123",
         )
@@ -192,7 +192,7 @@ class TestQuerySizeCollectionScope:
         admin_user: User,
     ) -> None:
         dto = QuerySizeDto(
-            user=admin_user,
+            user=UserPrincipalDto.from_user(admin_user),
             scope="collection",
             cluster_uri_hash="hash123",
             database_name="db1",
@@ -212,7 +212,7 @@ class TestQuerySizeCollectionScope:
         admin_user: User,
     ) -> None:
         dto = QuerySizeDto(
-            user=admin_user,
+            user=UserPrincipalDto.from_user(admin_user),
             scope="collection",
             cluster_uri_hash="hash123",
             page=1,
@@ -234,7 +234,7 @@ class TestQuerySizePermissionError:
         inactive = User(telegram_id=2, role=UserRole.READONLY)
         inactive.is_active = False
         dto = QuerySizeDto(
-            user=inactive,
+            user=UserPrincipalDto.from_user(inactive),
             scope="cluster",
             cluster_uri_hash="hash123",
         )
@@ -253,7 +253,7 @@ class TestQuerySizeAudit:
         audit_repo: _FakeAuditRepo,
     ) -> None:
         dto = QuerySizeDto(
-            user=admin_user,
+            user=UserPrincipalDto.from_user(admin_user),
             scope="cluster",
             cluster_uri_hash="hash123",
         )

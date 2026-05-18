@@ -141,7 +141,7 @@ class _FakeNotifier:
         correlation_id: str | None = None,
     ) -> None:
         if self._raise_on_send:
-            raise RuntimeError("Notifier down")
+            raise OSError("Notifier down")
         self.messages.append((chat_id, text))
 
     async def edit_message(
@@ -204,7 +204,7 @@ class _FakeRetentionManager:
 
     async def apply_policy(self) -> dict[str, Any]:
         if self._raise_on_apply:
-            raise RuntimeError("Retention failed")
+            raise OSError("Retention failed")
         self.applied = True
         return {"deleted_count": 0, "reclaimed_bytes": 0, "errors": []}
 

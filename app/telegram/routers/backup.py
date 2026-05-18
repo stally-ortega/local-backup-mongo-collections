@@ -8,7 +8,7 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from app.application.dtos import RequestBackupDto
+from app.application.dtos import RequestBackupDto, UserPrincipalDto
 from app.domain.entities.user import User
 from app.domain.exceptions.domain_errors import (
     DiskSpaceError,
@@ -460,7 +460,7 @@ async def on_ejecutar(
         ]
 
     dto = RequestBackupDto(
-        user=user,
+        user=UserPrincipalDto.from_user(user),
         chat_id=chat_id,
         topic_id=topic_id,
         status_message_id=callback.message.message_id

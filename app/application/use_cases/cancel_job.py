@@ -47,7 +47,14 @@ class CancelJobUseCase:
         InvalidStateTransitionError
             When the job is in a terminal state.
         """
-        job = await self._job_manager.cancel_job(dto.job_id, dto.user)
+        from app.domain.entities.user import User
+
+        user = User(
+            telegram_id=dto.user.telegram_id,
+            role=dto.user.role,
+            is_active=dto.user.is_active,
+        )
+        job = await self._job_manager.cancel_job(dto.job_id, user)
 
         await self._audit_service.log_action(
             action="CANCEL_REQUESTED",

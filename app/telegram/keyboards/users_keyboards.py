@@ -10,6 +10,7 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from app.application.dtos import UserPrincipalDto
 from app.domain.entities.user import User
 from app.domain.value_objects.enums import UserRole
 
@@ -34,7 +35,7 @@ class UserRoleCallback(CallbackData, prefix="user_role"):
 
 
 def build_users_keyboard(
-    users: Sequence[User],
+    users: Sequence[User | UserPrincipalDto],
     page: int,
     page_size: int = 10,
 ) -> InlineKeyboardMarkup:
@@ -43,7 +44,8 @@ def build_users_keyboard(
     Parameters
     ----------
     users:
-        List of :class:`~app.domain.entities.user.User` instances.
+        List of :class:`~app.domain.entities.user.User` or
+        :class:`~app.application.dtos.UserPrincipalDto` instances.
     page:
         One-based page index.
     page_size:

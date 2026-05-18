@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from app.application.dtos import CancelJobDto
+from app.application.dtos import CancelJobDto, UserPrincipalDto
 from app.application.services.audit_service import AuditService
 from app.application.services.job_manager import JobManager
 from app.application.services.permission_service import PermissionService
@@ -205,7 +205,7 @@ class TestCancelJobHappyPath:
         owner_user: User,
     ) -> None:
         job = await _store_queued_job(job_repo, owner_user)
-        dto = CancelJobDto(user=owner_user, job_id=job.id)
+        dto = CancelJobDto(user=UserPrincipalDto.from_user(owner_user), job_id=job.id)
 
         result = await use_case.execute(dto)
 
@@ -222,7 +222,7 @@ class TestCancelJobHappyPath:
         admin_user: User,
     ) -> None:
         job = await _store_queued_job(job_repo, owner_user)
-        dto = CancelJobDto(user=admin_user, job_id=job.id)
+        dto = CancelJobDto(user=UserPrincipalDto.from_user(admin_user), job_id=job.id)
 
         result = await use_case.execute(dto)
 
@@ -238,7 +238,7 @@ class TestCancelJobHappyPath:
         audit_repo: _FakeAuditRepo,
     ) -> None:
         job = await _store_queued_job(job_repo, owner_user)
-        dto = CancelJobDto(user=owner_user, job_id=job.id)
+        dto = CancelJobDto(user=UserPrincipalDto.from_user(owner_user), job_id=job.id)
 
         await use_case.execute(dto)
 
@@ -259,7 +259,7 @@ class TestCancelJobErrors:
         use_case: CancelJobUseCase,
         owner_user: User,
     ) -> None:
-        dto = CancelJobDto(user=owner_user, job_id="missing-job")
+        dto = CancelJobDto(user=UserPrincipalDto.from_user(owner_user), job_id="missing-job")
 
         with pytest.raises(JobError) as exc_info:
             await use_case.execute(dto)
@@ -274,7 +274,7 @@ class TestCancelJobErrors:
         other_user: User,
     ) -> None:
         job = await _store_queued_job(job_repo, owner_user)
-        dto = CancelJobDto(user=other_user, job_id=job.id)
+        dto = CancelJobDto(user=UserPrincipalDto.from_user(other_user), job_id=job.id)
 
         with pytest.raises(DomainPermissionError) as exc_info:
             await use_case.execute(dto)
@@ -293,7 +293,7 @@ class TestCancelJobErrors:
         job.mark_success()
         await job_repo.save(job)
 
-        dto = CancelJobDto(user=owner_user, job_id=job.id)
+        dto = CancelJobDto(user=UserPrincipalDto.from_user(owner_user), job_id=job.id)
         with pytest.raises(DomainPermissionError) as exc_info:
             await use_case.execute(dto)
         assert exc_info.value.code == "PERMISSION_DENIED"

@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from app.application.dtos import RequestBackupDto, RequestBackupResult
+from app.application.dtos import RequestBackupDto, RequestBackupResult, UserPrincipalDto
 from app.application.services.audit_service import AuditService
 from app.application.services.job_manager import JobManager
 from app.application.services.permission_service import PermissionService
@@ -260,7 +260,7 @@ def readonly_user() -> User:
 @pytest.fixture
 def dto_full(admin_user: User) -> RequestBackupDto:
     return RequestBackupDto(
-        user=admin_user,
+        user=UserPrincipalDto.from_user(admin_user),
         backup_type=BackupType.FULL,
         cluster_uri_hash="hash123",
     )
@@ -342,7 +342,7 @@ class TestRequestBackupPermissionError:
         readonly_user: User,
     ) -> None:
         dto = RequestBackupDto(
-            user=readonly_user,
+            user=UserPrincipalDto.from_user(readonly_user),
             backup_type=BackupType.FULL,
             cluster_uri_hash="hash123",
         )
@@ -451,7 +451,7 @@ class TestRequestBackupCustomCollections:
             CollectionTarget(database="db1", collection="col2"),
         ]
         dto = RequestBackupDto(
-            user=admin_user,
+            user=UserPrincipalDto.from_user(admin_user),
             backup_type=BackupType.CUSTOM,
             cluster_uri_hash="hash456",
             target_collections=targets,

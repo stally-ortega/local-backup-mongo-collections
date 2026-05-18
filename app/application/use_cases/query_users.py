@@ -3,7 +3,7 @@
 Restricted to ADMIN role; orchestrates audit logging.
 """
 
-from app.application.dtos import QueryUsersDto, QueryUsersResult
+from app.application.dtos import QueryUsersDto, QueryUsersResult, UserPrincipalDto
 from app.application.services.audit_service import AuditService
 from app.domain.repositories.repositories import IUserRepository
 
@@ -46,7 +46,15 @@ class QueryUsersUseCase:
         )
 
         return QueryUsersResult(
-            users=users,
+            users=[
+                UserPrincipalDto(
+                    telegram_id=u.telegram_id,
+                    username=u.username,
+                    role=u.role,
+                    is_active=u.is_active,
+                )
+                for u in users
+            ],
             page=dto.page,
             page_size=dto.page_size,
             total=total,

@@ -25,6 +25,7 @@ from app.application.dtos import (
     QueryMetricsResult,
     QueryUsersDto,
     QueryUsersResult,
+    UserPrincipalDto,
 )
 from app.domain.entities.backup_job import BackupJob
 from app.domain.entities.user import User
@@ -115,7 +116,7 @@ async def _run_jobs_query(
 ) -> QueryJobsResult:
     """Execute :class:`QueryJobsUseCase` inside a transactional session."""
     dto = QueryJobsDto(
-        user=user,
+        user=UserPrincipalDto.from_user(user),
         page=page,
         page_size=_JOBS_PAGE_SIZE,
         topic="ADMIN",
@@ -135,7 +136,7 @@ async def _run_users_query(
 ) -> QueryUsersResult:
     """Execute :class:`QueryUsersUseCase` inside a transactional session."""
     dto = QueryUsersDto(
-        user=user,
+        user=UserPrincipalDto.from_user(user),
         page=page,
         page_size=_USERS_PAGE_SIZE,
         topic="ADMIN",
@@ -155,7 +156,7 @@ async def _run_cancel_job(
 ) -> CancelJobResult:
     """Execute :class:`CancelJobUseCase` inside a transactional session."""
     dto = CancelJobDto(
-        user=user,
+        user=UserPrincipalDto.from_user(user),
         job_id=job_id,
         topic="BACKUP_REQUESTS",
         command="CANCEL",
@@ -329,7 +330,7 @@ async def cmd_auth(
         return
 
     dto = AddUserDto(
-        requester=user,
+        requester=UserPrincipalDto.from_user(user),
         telegram_id=telegram_id,
         username=username,
         role=role,
@@ -403,7 +404,7 @@ async def on_job_action(
 
     if callback_data.action == "detail":
         dto = GetJobDetailDto(
-            user=user,
+            user=UserPrincipalDto.from_user(user),
             job_id=callback_data.job_id,
             topic="ADMIN",
             command="JOB_DETAIL",
@@ -571,7 +572,7 @@ async def cmd_health(
         except Exception as exc:
             _logger.warning("telegram_health_check_failed", error=str(exc))
 
-    dto = HealthCheckDto(user=user, topic="ADMIN", command="HEALTH")
+    dto = HealthCheckDto(user=UserPrincipalDto.from_user(user), topic="ADMIN", command="HEALTH")
     async with telegram_deps.session_factory() as session:
         use_case = build_health_check_use_case(telegram_deps, session)
         result: HealthCheckResult = await use_case.execute(dto)
@@ -610,7 +611,7 @@ async def cmd_stats(
         await message.answer("No tienes permiso para este comando.")
         return
 
-    dto = QueryMetricsDto(user=user, topic="ADMIN", command="STATS")
+    dto = QueryMetricsDto(user=UserPrincipalDto.from_user(user), topic="ADMIN", command="STATS")
     async with telegram_deps.session_factory() as session:
         use_case = build_query_metrics_use_case(telegram_deps, session)
         result: QueryMetricsResult = await use_case.execute(dto)

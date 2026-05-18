@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.application.dtos import AddUserDto, AddUserResult
+from app.application.dtos import AddUserDto, AddUserResult, UserPrincipalDto
 from app.application.services.audit_service import AuditService
 from app.application.services.permission_service import PermissionService
 from app.application.use_cases.add_user import AddUserUseCase
@@ -55,7 +55,7 @@ class TestAddUserUseCaseExecute:
 
         admin = User(telegram_id=1, username="admin", role=UserRole.ADMIN)
         dto = AddUserDto(
-            requester=admin,
+            requester=UserPrincipalDto.from_user(admin),
             telegram_id=99,
             username="alice",
             role=UserRole.OPERATOR,
@@ -84,7 +84,7 @@ class TestAddUserUseCaseExecute:
 
         admin = User(telegram_id=1, username="admin", role=UserRole.ADMIN)
         dto = AddUserDto(
-            requester=admin,
+            requester=UserPrincipalDto.from_user(admin),
             telegram_id=99,
             username="alice_new",
             role=UserRole.DBA,
@@ -104,7 +104,7 @@ class TestAddUserUseCaseExecute:
     ) -> None:
         operator = User(telegram_id=1, username="bob", role=UserRole.OPERATOR)
         dto = AddUserDto(
-            requester=operator,
+            requester=UserPrincipalDto.from_user(operator),
             telegram_id=99,
             username="alice",
             role=UserRole.OPERATOR,

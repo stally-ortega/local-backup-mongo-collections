@@ -44,7 +44,12 @@ class AddUserUseCase:
         DomainPermissionError
             When the requesting user is not an ADMIN.
         """
-        if not self._permission_service.can_execute(dto.requester, "MANAGE_USERS", dto.topic):
+        requester = User(
+            telegram_id=dto.requester.telegram_id,
+            role=dto.requester.role,
+            is_active=dto.requester.is_active,
+        )
+        if not self._permission_service.can_execute(requester, "MANAGE_USERS", dto.topic):
             raise DomainPermissionError(
                 message="Only ADMIN can add users to the whitelist",
                 details={"requester_id": dto.requester.telegram_id},

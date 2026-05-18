@@ -9,7 +9,7 @@ from aiogram import Bot, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
-from app.application.dtos import QuerySizeDto, QuerySizeResult
+from app.application.dtos import QuerySizeDto, QuerySizeResult, UserPrincipalDto
 from app.domain.entities.size_report import CollectionSize
 from app.domain.entities.user import User
 from app.infrastructure.logging.structured_logger import get_logger
@@ -103,7 +103,7 @@ async def _run_size_query(
     Returns the :class:`QuerySizeResult` so callers can format the output.
     """
     dto = QuerySizeDto(
-        user=user,
+        user=UserPrincipalDto.from_user(user),
         scope=scope,
         cluster_uri_hash=deps.config.cluster_uri_hash,
         database_name=database_name,

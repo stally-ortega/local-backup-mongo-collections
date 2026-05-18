@@ -87,8 +87,16 @@ class RequestBackupUseCase:
         DiskSpaceError
             When the backup volume has less than ``min_free_disk_bytes`` free.
         """
+        from app.domain.entities.user import User
+
+        user = User(
+            telegram_id=dto.user.telegram_id,
+            role=dto.user.role,
+            is_active=dto.user.is_active,
+        )
+
         # 1. RBAC guard
-        if not self._permission_service.can_execute(dto.user, "BACKUP", dto.topic):
+        if not self._permission_service.can_execute(user, "BACKUP", dto.topic):
             raise DomainPermissionError(
                 message="User is not authorised to request backups",
                 details={

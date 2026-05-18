@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from app.application.dtos import QueryJobsDto, QueryJobsResult
+from app.application.dtos import QueryJobsDto, QueryJobsResult, UserPrincipalDto
 from app.application.services.audit_service import AuditService
 from app.application.use_cases.query_jobs import QueryJobsUseCase
 from app.domain.entities.backup_job import BackupJob
@@ -60,7 +60,7 @@ class _FakeAuditService(AuditService):
     async def log_action(
         self,
         action: str,
-        user: User,
+        user: User | UserPrincipalDto,
         *,
         topic: str = "",
         command: str | None = None,
@@ -84,7 +84,7 @@ class TestQueryJobsUseCase:
     @pytest.mark.asyncio
     async def test_admin_uses_list_by_status(self, use_case: QueryJobsUseCase) -> None:
         admin = User(telegram_id=1, role=UserRole.ADMIN)
-        dto = QueryJobsDto(user=admin, filter_status=JobStatus.QUEUED)
+        dto = QueryJobsDto(user=UserPrincipalDto.from_user(admin), filter_status=JobStatus.QUEUED)
 
         job = BackupJob.create_full("j1", 2, "hash")
         job.status = JobStatus.QUEUED
@@ -100,7 +100,7 @@ class TestQueryJobsUseCase:
         self, use_case: QueryJobsUseCase
     ) -> None:
         user = User(telegram_id=2, role=UserRole.OPERATOR)
-        dto = QueryJobsDto(user=user, filter_status=JobStatus.RUNNING)
+        dto = QueryJobsDto(user=UserPrincipalDto.from_user(user), filter_status=JobStatus.RUNNING)
 
         job = BackupJob.create_full("j2", 2, "hash")
         job.status = JobStatus.RUNNING
@@ -114,7 +114,7 @@ class TestQueryJobsUseCase:
     @pytest.mark.asyncio
     async def test_non_admin_sees_only_own_jobs(self, use_case: QueryJobsUseCase) -> None:
         user = User(telegram_id=2, role=UserRole.OPERATOR)
-        dto = QueryJobsDto(user=user, filter_status=JobStatus.QUEUED)
+        dto = QueryJobsDto(user=UserPrincipalDto.from_user(user), filter_status=JobStatus.QUEUED)
 
         own_job = BackupJob.create_full("own", 2, "hash")
         own_job.status = JobStatus.QUEUED

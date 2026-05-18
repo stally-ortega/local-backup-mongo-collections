@@ -4,13 +4,41 @@ These objects carry data from the interface layer into application services
 without exposing domain internals directly.
 """
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from app.domain.entities.backup_job import BackupJob
 from app.domain.entities.size_report import CollectionSize, DatabaseSize
-from app.domain.entities.user import User
 from app.domain.value_objects.dtos import CollectionTarget
 from app.domain.value_objects.enums import BackupType, JobStatus, UserRole
+
+
+class UserPrincipalDto(BaseModel):
+    """Minimal user representation for the application layer.
+
+    Decouples application DTOs from the full :class:`~app.domain.entities.user.User`
+    domain entity while preserving the RBAC fields needed by use cases.
+    """
+
+    telegram_id: int = Field(..., gt=0)
+    username: str | None = None
+    role: UserRole
+    is_active: bool = True
+
+    def has_role(self, role: UserRole) -> bool:
+        """Return ``True`` when the principal holds *role*."""
+        return self.role == role
+
+    @classmethod
+    def from_user(cls, user: Any) -> "UserPrincipalDto":
+        """Build a principal from a domain :class:`~app.domain.entities.user.User`."""
+        return cls(
+            telegram_id=user.telegram_id,
+            username=getattr(user, "username", None),
+            role=user.role,
+            is_active=user.is_active,
+        )
 
 
 class CreateJobRequest(BaseModel):
@@ -28,7 +56,7 @@ class CreateJobRequest(BaseModel):
 class RequestBackupDto(BaseModel):
     """Input payload for the backup request use case."""
 
-    user: User
+    user: UserPrincipalDto
     chat_id: int | None = None
     topic_id: int | None = None
     status_message_id: int | None = None
@@ -71,7 +99,7 @@ class ExecuteBackupResult(BaseModel):
 class QuerySizeDto(BaseModel):
     """Input payload for the size query use case."""
 
-    user: User
+    user: UserPrincipalDto
     scope: str = Field(..., pattern=r"^(cluster|database|collection)$")
     cluster_uri_hash: str = Field(..., min_length=1)
     database_name: str | None = None
@@ -95,7 +123,7 @@ class QuerySizeResult(BaseModel):
 class CancelJobDto(BaseModel):
     """Input payload for the cancel job use case."""
 
-    user: User
+    user: UserPrincipalDto
     job_id: str = Field(..., min_length=1)
     topic: str = "BACKUP_REQUESTS"
     command: str | None = None
@@ -112,7 +140,7 @@ class CancelJobResult(BaseModel):
 class GetJobDetailDto(BaseModel):
     """Input payload for the job-detail use case."""
 
-    user: User
+    user: UserPrincipalDto
     job_id: str = Field(..., min_length=1)
     topic: str = "ADMIN"
     command: str | None = None
@@ -127,7 +155,7 @@ class GetJobDetailResult(BaseModel):
 class QueryJobsDto(BaseModel):
     """Input payload for the list-jobs use case."""
 
-    user: User
+    user: UserPrincipalDto
     filter_status: JobStatus = JobStatus.QUEUED
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=10, ge=1, le=50)
@@ -146,7 +174,7 @@ class QueryJobsResult(BaseModel):
 class QueryUsersDto(BaseModel):
     """Input payload for the list-users use case."""
 
-    user: User
+    user: UserPrincipalDto
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=10, ge=1, le=50)
     topic: str = "ADMIN"
@@ -156,7 +184,7 @@ class QueryUsersDto(BaseModel):
 class QueryUsersResult(BaseModel):
     """Outcome of a user-list query."""
 
-    users: list[User]
+    users: list[UserPrincipalDto]
     page: int
     page_size: int
     total: int
@@ -165,7 +193,7 @@ class QueryUsersResult(BaseModel):
 class AddUserDto(BaseModel):
     """Input payload for the add-user use case."""
 
-    requester: User
+    requester: UserPrincipalDto
     telegram_id: int = Field(..., gt=0)
     username: str = Field(..., min_length=1)
     role: UserRole
@@ -185,7 +213,7 @@ class AddUserResult(BaseModel):
 class HealthCheckDto(BaseModel):
     """Input payload for the health-check use case."""
 
-    user: User
+    user: UserPrincipalDto
     topic: str = "ADMIN"
     command: str | None = None
 
@@ -203,7 +231,7 @@ class HealthCheckResult(BaseModel):
 class QueryMetricsDto(BaseModel):
     """Input payload for the metrics query use case."""
 
-    user: User
+    user: UserPrincipalDto
     topic: str = "ADMIN"
     command: str | None = None
 
