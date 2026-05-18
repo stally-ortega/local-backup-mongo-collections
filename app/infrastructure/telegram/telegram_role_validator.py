@@ -28,7 +28,7 @@ class TelegramRoleValidator:
     def __init__(
         self,
         bot: Bot,
-        chat_id: int,
+        chat_id: int | str,
         *,
         ttl_seconds: int = _DEFAULT_CACHE_TTL_SECONDS,
         maxsize: int = _DEFAULT_CACHE_MAXSIZE,
@@ -44,8 +44,15 @@ class TelegramRoleValidator:
         Caches the result for the configured TTL.  If the Telegram API call
         fails the method returns ``False`` (fail-closed).
         """
+        logger.info(
+            "-> Verificando Telegram Admin para user %s en chat %s",
+            user_id,
+            self._chat_id,
+        )
+
         cached: bool | None = self._cache.get(user_id)
         if cached is not None:
+            logger.info("-> Cache Hit: %s", cached)
             return cached
 
         try:
@@ -60,11 +67,10 @@ class TelegramRoleValidator:
                 ChatMemberStatus.ADMINISTRATOR,
             }
         except TelegramAPIError as exc:
-            logger.warning(
-                "telegram_role_validator_api_error",
-                exc_info=exc,
-                user_id=user_id,
-                chat_id=self._chat_id,
+            logger.error(
+                "-> Error API Telegram: %s",
+                exc,
+                exc_info=True,
             )
             return False
 

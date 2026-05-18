@@ -6,6 +6,7 @@ full middleware + router stack.
 """
 
 import logging
+from dataclasses import replace
 from typing import Any, cast
 
 import redis.asyncio as aioredis
@@ -96,6 +97,15 @@ class BotBuilder:
         """
         bot = AiogramBot.from_config(self._config)
         bot.start()
+
+        # Rebuild middleware dependencies with the live aiogram Bot so that
+        # AuthMiddleware can construct TelegramRoleValidator for native
+        # chat-member checks.
+        if self._middleware_deps is not None:
+            self._middleware_deps = replace(
+                self._middleware_deps,
+                bot=bot.bot,
+            )
 
         # Wire TelegramDependencies into the backup router before the
         # dispatcher includes it.

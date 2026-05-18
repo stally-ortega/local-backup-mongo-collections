@@ -53,6 +53,11 @@ class RoleMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         user = data.get("user")
+        self._logger.info(
+            "-> RoleMiddleware evaluando a user_id=%s con rol=%s",
+            getattr(user, "telegram_id", "None"),
+            getattr(user, "role", "None"),
+        )
         if not isinstance(user, User):
             # No authenticated user injected by AuthMiddleware.
             # Allow the handler to deal with it (e.g. system events, webhooks).

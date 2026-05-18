@@ -63,6 +63,15 @@ def get_global_middlewares(
     permission_service = deps.permission_service if deps is not None else None
     audit_service = deps.audit_service if deps is not None else None
     redis_async_client = deps.redis_async_client if deps is not None else None
+    bot = deps.bot if deps is not None else None
+
+    telegram_role_validator = None
+    if bot is not None and config is not None:
+        from app.infrastructure.telegram.telegram_role_validator import TelegramRoleValidator
+        telegram_role_validator = TelegramRoleValidator(
+            bot=bot,
+            chat_id=config.telegram_chat_id,
+        )
 
     return [
         LoggingMiddleware(),
@@ -77,6 +86,7 @@ def get_global_middlewares(
             session_factory=session_factory,
             audit_service=audit_service,
             config=config,
+            telegram_role_validator=telegram_role_validator,
         ),
         RoleMiddleware(
             session_factory=session_factory,
