@@ -68,11 +68,10 @@ class AuthMiddleware(BaseMiddleware):
                     is_active=True,
                 )
                 return await handler(event, data)
-            await self._reply_unauthorized(ctx, data)
-            await self._log_denied_from_ctx(ctx)
-            return None
+            # Not an admin via Telegram; fall through to local whitelist below.
 
-        # Fallback: local whitelist when the Telegram validator is not configured.
+        # Fallback: local whitelist when the Telegram validator is not configured
+        # OR when the Telegram validator reports a non-admin status.
         if self._session_factory is None:
             return await handler(event, data)
 

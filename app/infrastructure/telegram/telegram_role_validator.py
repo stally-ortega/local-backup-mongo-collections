@@ -7,7 +7,7 @@ chat-member status and caching the result to avoid rate-limiting.
 from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramAPIError
-from cachetools import TTLCache  # type: ignore[import-untyped]
+from cachetools import TTLCache
 
 from app.infrastructure.logging.structured_logger import get_logger
 
@@ -50,6 +50,11 @@ class TelegramRoleValidator:
 
         try:
             member = await self._bot.get_chat_member(self._chat_id, user_id)
+            logger.info(
+                "Telegram Auth Check - User: %s, Status: %s",
+                user_id,
+                member.status,
+            )
             is_admin = member.status in {
                 ChatMemberStatus.CREATOR,
                 ChatMemberStatus.ADMINISTRATOR,

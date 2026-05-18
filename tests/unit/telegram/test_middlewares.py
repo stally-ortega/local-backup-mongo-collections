@@ -365,27 +365,66 @@ class TestAuthMiddleware:
         assert data["user"].role == UserRole.ADMIN
         mock_handler.assert_awaited_once()
 
-    async def test_rejects_non_admin_via_role_validator(
+    async def test_rejects_non_admin_via_role_validator_and_not_in_db(
         self,
         mock_handler: AsyncMock,
         mock_bot: MagicMock,
+        mock_session_factory: MagicMock,
     ) -> None:
-        mock_bot.get_chat_member = AsyncMock(return_value=MagicMock(status=ChatMemberStatus.MEMBER))
+        mock_bot.get_chat_member = AsyncMock(
+            return_value=MagicMock(status=ChatMemberStatus.MEMBER)
+        )
         validator = TelegramRoleValidator(
             bot=mock_bot,
             chat_id=-100,
             ttl_seconds=600,
         )
-        mw = AuthMiddleware(telegram_role_validator=validator)
-        data = _make_data(mock_bot)
-        result = await mw(mock_handler, _make_message_update(user_id=99), data)
-        assert result is None
-        mock_handler.assert_not_awaited()
+        with patch("app.telegram.middlewares.auth_middleware.SQLUserRepository") as mock_repo_cls:
+            mock_repo = mock_repo_cls.return_value
+            mock_repo.get_by_telegram_id = AsyncMock(return_value=None)
+            mw = AuthMiddleware(
+                telegram_role_validator=validator,
+                session_factory=mock_session_factory,
+            )
+            data = _make_data(mock_bot)
+            result = await mw(mock_handler, _make_message_update(user_id=99), data)
+            assert result is None
+            mock_handler.assert_not_awaited()
+
+    async def test_allows_via_sql_fallback_when_telegram_rejects(
+        self,
+        mock_handler: AsyncMock,
+        mock_bot: MagicMock,
+        mock_session_factory: MagicMock,
+    ) -> None:
+        """OR logic: Telegram says non-admin, but local SQLite whitelist has the user."""
+        mock_bot.get_chat_member = AsyncMock(
+            return_value=MagicMock(status=ChatMemberStatus.MEMBER)
+        )
+        validator = TelegramRoleValidator(
+            bot=mock_bot,
+            chat_id=-100,
+            ttl_seconds=600,
+        )
+        local_user = User(telegram_id=42, username="alice", role=UserRole.ADMIN)
+        with patch("app.telegram.middlewares.auth_middleware.SQLUserRepository") as mock_repo_cls:
+            mock_repo = mock_repo_cls.return_value
+            mock_repo.get_by_telegram_id = AsyncMock(return_value=local_user)
+            mw = AuthMiddleware(
+                telegram_role_validator=validator,
+                session_factory=mock_session_factory,
+            )
+            data = _make_data(mock_bot)
+            result = await mw(mock_handler, _make_message_update(user_id=42), data)
+            assert result == "handler_result"
+            assert data["user"] is local_user
+            mock_handler.assert_awaited_once()
 
     async def test_rejects_on_telegram_api_error_via_role_validator(
         self,
         mock_handler: AsyncMock,
         mock_bot: MagicMock,
+        mock_session_factory: MagicMock,
     ) -> None:
         from aiogram.exceptions import TelegramAPIError
 
@@ -397,11 +436,17 @@ class TestAuthMiddleware:
             chat_id=-100,
             ttl_seconds=600,
         )
-        mw = AuthMiddleware(telegram_role_validator=validator)
-        data = _make_data(mock_bot)
-        result = await mw(mock_handler, _make_message_update(user_id=42), data)
-        assert result is None
-        mock_handler.assert_not_awaited()
+        with patch("app.telegram.middlewares.auth_middleware.SQLUserRepository") as mock_repo_cls:
+            mock_repo = mock_repo_cls.return_value
+            mock_repo.get_by_telegram_id = AsyncMock(return_value=None)
+            mw = AuthMiddleware(
+                telegram_role_validator=validator,
+                session_factory=mock_session_factory,
+            )
+            data = _make_data(mock_bot)
+            result = await mw(mock_handler, _make_message_update(user_id=42), data)
+            assert result is None
+            mock_handler.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
