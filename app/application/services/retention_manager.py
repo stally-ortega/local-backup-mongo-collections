@@ -182,9 +182,9 @@ class RetentionManager:
     def _classify_type(path: Path) -> str:
         """Derive backup type from filename or parent directory name."""
         name = path.name.lower()
-        if "full" in name:
+        if name.startswith("backup_full_") and name.endswith(".tar.gz"):
             return "full"
-        if "custom" in name:
+        if name.startswith("backup_custom_") and name.endswith(".tar.gz"):
             return "custom"
         parent = path.parent.name.lower()
         if parent == "full":

@@ -273,6 +273,16 @@ class TestRetentionManagerClassify:
     def test_unknown(self) -> None:
         assert RetentionManager._classify_type(Path("backup_unknown_xxx.tar.gz")) == "unknown"
 
+    def test_substring_in_name_is_not_misclassified(self) -> None:
+        # A file with "full" or "custom" embedded but not at the strict prefix.
+        assert RetentionManager._classify_type(Path("my_full_backup.tar.gz")) == "unknown"
+        assert RetentionManager._classify_type(Path("report_custom_final.tar.gz")) == "unknown"
+
+    def test_prefix_ambiguity_resolved_by_prefix(self) -> None:
+        # Prefix determines type unambiguously.
+        assert RetentionManager._classify_type(Path("backup_full_custom_report.tar.gz")) == "full"
+        assert RetentionManager._classify_type(Path("backup_custom_full_report.tar.gz")) == "custom"
+
 
 class TestCleanupOldBackups:
     @pytest.mark.asyncio
