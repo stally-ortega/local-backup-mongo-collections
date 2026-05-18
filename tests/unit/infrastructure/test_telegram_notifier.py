@@ -50,6 +50,7 @@ class TestSendMessage:
             chat_id=-100,
             text="&lt;b&gt;Hello&lt;/b&gt;",
             message_thread_id=5,
+            request_timeout=30,
         )
 
     async def test_retries_on_failure_then_succeeds(
@@ -92,6 +93,7 @@ class TestSendMessage:
             chat_id=1,
             text="&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;",
             message_thread_id=None,
+            request_timeout=30,
         )
 
 
@@ -111,6 +113,7 @@ class TestEditMessage:
             chat_id=-100,
             message_id=42,
             text="Updated",
+            request_timeout=30,
         )
 
     async def test_escapes_html_in_edit(
@@ -128,6 +131,7 @@ class TestEditMessage:
             chat_id=-100,
             message_id=42,
             text="&lt;a href=&#x27;http://evil.com&#x27;&gt;click&lt;/a&gt;",
+            request_timeout=30,
         )
 
 
@@ -153,6 +157,7 @@ class TestSendDocument:
                 document=mock_fs.return_value,
                 caption="Archive",
                 message_thread_id=3,
+                request_timeout=30,
             )
 
     async def test_escapes_html_in_caption(
@@ -174,6 +179,7 @@ class TestSendDocument:
                 document=mock_fs.return_value,
                 caption="&lt;script&gt;pwn&lt;/script&gt;",
                 message_thread_id=None,
+                request_timeout=30,
             )
 
     async def test_rejects_path_outside_base(

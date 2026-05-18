@@ -28,6 +28,7 @@ _MAX_MESSAGES_PER_SECOND: int = 30
 _WINDOW_SECONDS: float = 1.0
 _MAX_RETRIES: int = 3
 _BACKOFF_BASE_SECONDS: float = 1.0
+_REQUEST_TIMEOUT_SECONDS: int = 30
 
 _T = TypeVar("_T")
 
@@ -178,6 +179,7 @@ class TelegramNotifier:
                 chat_id=chat_id,
                 text=safe_text,
                 message_thread_id=topic_id,
+                request_timeout=_REQUEST_TIMEOUT_SECONDS,
             )
 
         await self._execute_with_retry("send_message", _call)
@@ -197,6 +199,7 @@ class TelegramNotifier:
                 chat_id=chat_id,
                 message_id=message_id,
                 text=safe_text,
+                request_timeout=_REQUEST_TIMEOUT_SECONDS,
             )
 
         await self._execute_with_retry("edit_message", _call)
@@ -222,6 +225,7 @@ class TelegramNotifier:
                 document=FSInputFile(str(resolved)),
                 caption=safe_caption,
                 message_thread_id=topic_id,
+                request_timeout=_REQUEST_TIMEOUT_SECONDS,
             )
 
         await self._execute_with_retry("send_document", _call)
