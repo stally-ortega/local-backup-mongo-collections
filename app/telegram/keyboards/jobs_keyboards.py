@@ -89,6 +89,5 @@ def _status_emoji(status: JobStatus) -> str:
         JobStatus.FAILED: "❌",
         JobStatus.PARTIAL_SUCCESS: "⚠️",
         JobStatus.CANCELLED: "🚫",
-        JobStatus.RETRYING: "🔁",
     }
     return mapping.get(status, "❓")

@@ -35,7 +35,7 @@ class JobORM(Base):
         String(20),
         nullable=False,
         index=True,
-        comment="PENDING, QUEUED, RUNNING, SUCCESS, FAILED, PARTIAL_SUCCESS, CANCELLED, RETRYING",
+        comment="PENDING, QUEUED, RUNNING, SUCCESS, FAILED, PARTIAL_SUCCESS, CANCELLED",
     )
     cluster_uri_hash: Mapped[str] = mapped_column(
         String(64),

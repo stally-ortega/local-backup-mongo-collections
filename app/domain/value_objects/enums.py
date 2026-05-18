@@ -33,7 +33,6 @@ class JobStatus(str, Enum):
     FAILED = "FAILED"
     PARTIAL_SUCCESS = "PARTIAL_SUCCESS"
     CANCELLED = "CANCELLED"
-    RETRYING = "RETRYING"
 
 
 class CollectionBackupStatus(str, Enum):

@@ -49,8 +49,7 @@ class BackupJob(BaseModel):
             JobStatus.PARTIAL_SUCCESS,
             JobStatus.CANCELLED,
         },
-        JobStatus.RETRYING: {JobStatus.RUNNING, JobStatus.CANCELLED},
-        JobStatus.SUCCESS: set(),
+        JobStatus.CANCELLED: set(),
         JobStatus.FAILED: set(),
         JobStatus.PARTIAL_SUCCESS: set(),
         JobStatus.CANCELLED: set(),
@@ -114,7 +113,7 @@ class BackupJob(BaseModel):
         self._transition(JobStatus.QUEUED)
 
     def mark_running(self) -> None:
-        """Move job from ``QUEUED`` or ``RETRYING`` to ``RUNNING``."""
+        """Move job from ``QUEUED`` to ``RUNNING``."""
         self._transition(JobStatus.RUNNING)
         if self.started_at is None:
             self.started_at = datetime.now(timezone.utc)
@@ -130,7 +129,7 @@ class BackupJob(BaseModel):
         self.completed_at = datetime.now(timezone.utc)
 
     def mark_failed(self, error_log: str | None = None) -> None:
-        """Move job from ``RUNNING`` or ``RETRYING`` to ``FAILED``."""
+        """Move job from ``RUNNING`` to ``FAILED``."""
         self._transition(JobStatus.FAILED)
         if error_log:
             self.error_log = error_log

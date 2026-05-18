@@ -52,7 +52,6 @@ class TestJobStatus:
         assert JobStatus.FAILED == "FAILED"
         assert JobStatus.PARTIAL_SUCCESS == "PARTIAL_SUCCESS"
         assert JobStatus.CANCELLED == "CANCELLED"
-        assert JobStatus.RETRYING == "RETRYING"
 
     def test_terminal_states(self) -> None:
         terminal = {JobStatus.SUCCESS, JobStatus.FAILED, JobStatus.CANCELLED}
