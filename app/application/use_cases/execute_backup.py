@@ -8,6 +8,7 @@ retention enforcement, and user notification.
 import asyncio
 import logging
 import re
+import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -64,6 +65,7 @@ class ExecuteBackupUseCase:
     _LOCK_TTL: int = 3600  # 1 hour
     _MAX_LOOKUP_RETRIES: int = 5
     _RETRY_BACKOFF_S: float = 0.5
+    _MIN_UI_UPDATE_INTERVAL_S: float = 4.0
 
     def __init__(
         self,
@@ -87,6 +89,7 @@ class ExecuteBackupUseCase:
         self._fs_utils = fs_utils
         self._lock_manager = lock_manager
         self._backup_base_path = backup_base_path
+        self._last_ui_update_ts: float = 0.0
 
     async def execute(
         self,
@@ -201,6 +204,7 @@ class ExecuteBackupUseCase:
                 )
                 job.target_collections = collection_results
                 await self._job_repository.save(job)
+                await self._notify_progress(job)
 
             final_status = self._finalize_job(
                 job=job,
@@ -349,6 +353,48 @@ class ExecuteBackupUseCase:
         }
         return mapping.get(status, "BACKUP_FINISHED")
 
+    def _should_update_ui(self) -> bool:
+        now = time.monotonic()
+        if now - self._last_ui_update_ts >= self._MIN_UI_UPDATE_INTERVAL_S:
+            self._last_ui_update_ts = now
+            return True
+        return False
+
+    async def _notify_progress(self, job: BackupJob) -> None:
+        """Edit the original status message with live progress.
+
+        Throttled to at most one Telegram edit every
+        ``_MIN_UI_UPDATE_INTERVAL_S`` seconds to avoid FloodWait.
+        """
+        if job.status_message_id is None or job.chat_id is None:
+            return
+        if not self._should_update_ui():
+            return
+
+        progress = job.progress
+        if progress is None:
+            return
+
+        lines = [
+            "🔵 Backup en progreso…",
+            f"Colecciones: {progress.completed_collections}/{progress.total_collections}",
+        ]
+        if progress.failed_collections:
+            lines.append(f"Fallidas: {progress.failed_collections}")
+        lines.append(f"Progreso: {progress.percent_complete}%")
+        if progress.bytes_processed:
+            lines.append(f"Procesado: {progress.bytes_processed} bytes")
+        lines.append(f"Estado: {job.status.value}")
+
+        try:
+            await self._notifier.edit_message(
+                chat_id=job.chat_id,
+                message_id=job.status_message_id,
+                text="\n".join(lines),
+            )
+        except Exception:
+            logger.exception("Progress notification failed for job %s", job.id)
+
     async def _notify(
         self,
         job: BackupJob,
@@ -358,35 +404,48 @@ class ExecuteBackupUseCase:
         total: int,
         bytes_processed: int,
     ) -> None:
-        """Send a best-effort completion notification to the origin topic.
+        """Edit the original status message with the final result.
 
-        Notification failures are intentionally **not** raised so that a
-        transient Telegram outage does not flip a successfully backed-up job
-        into ``FAILED``.
+        Falls back to a new message when ``status_message_id`` is not
+        available.  Failures are swallowed so that a transient Telegram
+        outage does not flip a successfully backed-up job into ``FAILED``.
         """
-        summary = (
-            f"Backup job #{job.id} finished with status {status.value}.\n"
-            f"Collections: {completed}/{total} succeeded"
-        )
-        if failed:
-            summary += f", {failed} failed"
-        summary += "."
-        if bytes_processed:
-            summary += f"\nTotal size: {bytes_processed} bytes."
+        icon = {
+            JobStatus.SUCCESS: "✅",
+            JobStatus.PARTIAL_SUCCESS: "⚠️",
+            JobStatus.FAILED: "❌",
+            JobStatus.CANCELLED: "🚫",
+        }.get(status, "ℹ️")
 
+        lines = [
+            f"{icon} Backup finalizado",
+            f"ID: #{job.id}",
+            f"Estado: {status.value}",
+            f"Colecciones: {completed}/{total}",
+        ]
+        if failed:
+            lines.append(f"Fallidas: {failed}")
+        if bytes_processed:
+            lines.append(f"Tamaño total: {bytes_processed} bytes")
+
+        summary = "\n".join(lines)
         chat_id = job.chat_id or job.requester_telegram_id
+
         try:
-            await self._notifier.send_message(
-                chat_id=chat_id,
-                text=summary,
-                topic_id=job.topic_id,
-            )
-        except (ConnectionError, TimeoutError, OSError) as exc:
-            logger.warning(
-                "Notification failed for job %s: %s",
-                job.id,
-                exc,
-            )
+            if job.status_message_id is not None and job.chat_id is not None:
+                await self._notifier.edit_message(
+                    chat_id=job.chat_id,
+                    message_id=job.status_message_id,
+                    text=summary,
+                )
+            else:
+                await self._notifier.send_message(
+                    chat_id=chat_id,
+                    text=summary,
+                    topic_id=job.topic_id,
+                )
+        except Exception:
+            logger.exception("Final notification failed for job %s", job.id)
 
     async def _apply_retention(self, job_id: str, status: JobStatus) -> None:
         """Trigger retention cleanup for successful backups.
