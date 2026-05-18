@@ -1,6 +1,6 @@
 """Size-report aggregate for MongoDB storage analytics."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -38,7 +38,7 @@ class SizeReport(BaseModel):
     model_config = {"frozen": True}
 
     cluster_uri_hash: str = Field(..., min_length=1)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     databases: list[DatabaseSize] = Field(default_factory=list)
     collections: list[CollectionSize] = Field(default_factory=list)
 

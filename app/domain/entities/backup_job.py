@@ -1,6 +1,6 @@
 """BackupJob entity with finite-state-machine lifecycle guards."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import ClassVar
 
@@ -36,8 +36,8 @@ class BackupJob(BaseModel):
     completed_at: datetime | None = None
     cancelled_by: int | None = None
     queue_job_id: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Finite-state-machine adjacency list.
     _VALID_TRANSITIONS: dict[JobStatus, set[JobStatus]] = {
@@ -107,7 +107,7 @@ class BackupJob(BaseModel):
                 f"Illegal transition from {self.status.value} to {new_status.value}"
             )
         self.status = new_status
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def mark_queued(self) -> None:
         """Move job from ``PENDING`` to ``QUEUED``."""
@@ -117,40 +117,40 @@ class BackupJob(BaseModel):
         """Move job from ``QUEUED`` or ``RETRYING`` to ``RUNNING``."""
         self._transition(JobStatus.RUNNING)
         if self.started_at is None:
-            self.started_at = datetime.utcnow()
+            self.started_at = datetime.now(timezone.utc)
 
     def mark_success(self) -> None:
         """Move job from ``RUNNING`` to ``SUCCESS``."""
         self._transition(JobStatus.SUCCESS)
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
 
     def mark_partial_success(self) -> None:
         """Move job from ``RUNNING`` to ``PARTIAL_SUCCESS``."""
         self._transition(JobStatus.PARTIAL_SUCCESS)
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
 
     def mark_failed(self, error_log: str | None = None) -> None:
         """Move job from ``RUNNING`` or ``RETRYING`` to ``FAILED``."""
         self._transition(JobStatus.FAILED)
         if error_log:
             self.error_log = error_log
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
 
     def mark_cancelled(self, by_telegram_id: int) -> None:
         """Move job to ``CANCELLED`` if it is not already terminal."""
         self._transition(JobStatus.CANCELLED)
         self.cancelled_by = by_telegram_id
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
 
     def update_progress(self, progress: JobProgress) -> None:
         """Replace the current progress snapshot."""
         self.progress = progress
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def add_collection_result(self, result: CollectionTarget) -> None:
         """Append a completed collection target to the job."""
         self.target_collections.append(result)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def can_be_cancelled_by(self, user: User) -> bool:
         """Return ``True`` when *user* may cancel this job.

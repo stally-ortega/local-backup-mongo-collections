@@ -9,7 +9,7 @@ import asyncio
 import logging
 import re
 from collections.abc import Awaitable, Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.application.dtos import ExecuteBackupDto, ExecuteBackupResult
@@ -157,7 +157,7 @@ class ExecuteBackupUseCase:
             targets = await self._resolve_targets(job)
             total = len(targets)
 
-            started_at = datetime.utcnow()
+            started_at = datetime.now(timezone.utc)
             await self._audit_service.log_job_event(
                 job_id=job.id,
                 event="BACKUP_STARTED",
@@ -211,7 +211,7 @@ class ExecuteBackupUseCase:
             )
             await self._job_repository.save(job)
 
-            duration_ms = int((datetime.utcnow() - started_at).total_seconds() * 1000)
+            duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
             await self._audit_service.log_job_event(
                 job_id=job.id,
                 event=self._event_name(final_status),

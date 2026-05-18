@@ -5,7 +5,7 @@ an optional ``correlation_id`` for distributed tracing, and a strongly typed
 ``payload``.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
 
@@ -37,7 +37,7 @@ class BackupStartedPayload(EventPayload):
     """Payload for :class:`BackupStarted`."""
 
     job_id: str = Field(..., min_length=1)
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class CollectionBackupCompletedPayload(EventPayload):
@@ -52,7 +52,7 @@ class BackupCompletedPayload(EventPayload):
 
     job_id: str = Field(..., min_length=1)
     status: JobStatus
-    completed_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class BackupFailedPayload(EventPayload):
@@ -60,7 +60,7 @@ class BackupFailedPayload(EventPayload):
 
     job_id: str = Field(..., min_length=1)
     error_log: str | None = None
-    completed_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class JobCancelledPayload(EventPayload):
@@ -68,7 +68,7 @@ class JobCancelledPayload(EventPayload):
 
     job_id: str = Field(..., min_length=1)
     cancelled_by: int = Field(..., gt=0)
-    cancelled_at: datetime = Field(default_factory=datetime.utcnow)
+    cancelled_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ class DomainEvent(BaseModel):
     model_config = {"frozen": True}
 
     event_type: str = Field(..., min_length=1)
-    occurred_on: datetime = Field(default_factory=datetime.utcnow)
+    occurred_on: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     correlation_id: str | None = None
     payload: EventPayload
 

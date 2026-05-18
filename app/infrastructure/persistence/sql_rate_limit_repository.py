@@ -4,7 +4,7 @@ Maps between :class:`~app.domain.entities.rate_limit.RateLimit` (domain entity) 
 :class:`~app.infrastructure.persistence.models.rate_limit.RateLimitORM` (SQLAlchemy model).
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,7 +38,7 @@ class SQLRateLimitRepository(IRateLimitRepository):
         window_seconds: int,
     ) -> bool:
         """Return ``True`` when the user has not exceeded the rate limit."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         window_start = now - timedelta(seconds=window_seconds)
 
         result = await self._session.execute(
@@ -62,7 +62,7 @@ class SQLRateLimitRepository(IRateLimitRepository):
 
         Creates a fresh window row when the previous one has expired.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         window_start = now - timedelta(seconds=window_seconds)
 
         result = await self._session.execute(

@@ -1,6 +1,6 @@
 """Audit log domain entity."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -24,5 +24,5 @@ class AuditLog(BaseModel):
     duration_ms: int | None = Field(default=None, ge=0)
     ip_address: str | None = None
     user_agent: str | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     details: dict[str, Any] | None = None

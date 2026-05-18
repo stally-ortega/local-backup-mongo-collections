@@ -9,7 +9,7 @@ import asyncio
 import logging
 import shutil
 import tarfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ class AioFsUtils:
         """Return the last modification time of *path* as a UTC datetime."""
         self._validate_path(path)
         mtime: float = await asyncio.to_thread(lambda: path.stat().st_mtime)
-        return datetime.utcfromtimestamp(mtime)
+        return datetime.fromtimestamp(mtime, tz=timezone.utc)
 
     async def move(self, source: Path, destination: Path) -> None:
         """Move *source* to *destination* (file or directory).

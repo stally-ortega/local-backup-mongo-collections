@@ -1,6 +1,6 @@
 """Tests verifying application port protocol shapes and fake adapters."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -124,7 +124,7 @@ class _FakeFsUtils:
         return []
 
     async def get_modification_time(self, path: Path) -> datetime:
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
 
 
 class _FakeMongoMetadata:

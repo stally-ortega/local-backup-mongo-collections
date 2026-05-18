@@ -1,6 +1,6 @@
 """Unit tests for RequestBackupUseCase."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -80,7 +80,7 @@ class _FakeFsUtils:
         return []
 
     async def get_modification_time(self, path: Path) -> datetime:
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
 
 
 class _FakeJobRepo:

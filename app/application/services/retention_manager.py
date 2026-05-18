@@ -4,7 +4,7 @@ Cleans up expired archives based on age rules and global storage caps
 while guaranteeing at least one surviving backup per type.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -88,7 +88,7 @@ class RetentionManager:
         if not files:
             return {"deleted_count": 0, "reclaimed_bytes": 0, "errors": []}
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         cutoff_full = now - timedelta(weeks=self._full_weeks)
         cutoff_custom = now - timedelta(weeks=self._custom_weeks)
 

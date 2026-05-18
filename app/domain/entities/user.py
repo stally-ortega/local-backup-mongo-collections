@@ -1,6 +1,6 @@
 """User entity representing a Telegram operator in the platform."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
 
@@ -20,7 +20,7 @@ class User(BaseModel):
     username: str | None = None
     role: UserRole
     is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Role-to-command mapping (extendable without code changes).
     _COMMAND_PERMISSIONS: dict[str, set[UserRole]] = {

@@ -1,6 +1,6 @@
 """Unit tests for RetentionManager."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, cast
 
@@ -150,12 +150,12 @@ class TestRetentionManagerStorageStats:
         fs.seed_file(
             base_path / "backup_full_20260101_120000.tar.gz",
             size=100,
-            mtime=datetime.utcnow(),
+            mtime=datetime.now(timezone.utc),
         )
         fs.seed_file(
             base_path / "backup_custom_20260102_120000.tar.gz",
             size=200,
-            mtime=datetime.utcnow(),
+            mtime=datetime.now(timezone.utc),
         )
         stats = await manager.get_storage_stats()
         assert stats["backup_file_count"] == 2
@@ -176,7 +176,7 @@ class TestRetentionManagerApplyPolicy:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         # Recent backups (should survive).
         fs.seed_file(
             base_path / "backup_full_20260115_120000.tar.gz",
@@ -214,7 +214,7 @@ class TestRetentionManagerApplyPolicy:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         # Only one full backup, very old.
         fs.seed_file(
             base_path / "backup_full_20250101_120000.tar.gz",
@@ -241,7 +241,7 @@ class TestRetentionManagerApplyPolicy:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         # Create several backups totalling > 1 GB cap.
         for i in range(5):
             fs.seed_file(
@@ -267,7 +267,7 @@ class TestRetentionManagerApplyPolicy:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         # Two full backups, very large.
         fs.seed_file(
             base_path / "backup_full_20260101_120000.tar.gz",
@@ -341,7 +341,7 @@ class TestCleanupOldBackups:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         # Recent backups (should survive).
         fs.seed_file(
             base_path / "backup_full_20260115_120000.tar.gz",
@@ -379,7 +379,7 @@ class TestCleanupOldBackups:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         fs.seed_file(
             base_path / "backup_full_20250101_120000.tar.gz",
             size=100,
@@ -411,7 +411,7 @@ class TestEnforceMaxStorage:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         fs.seed_file(
             base_path / "backup_full_20260101_120000.tar.gz",
             size=100,
@@ -430,7 +430,7 @@ class TestEnforceMaxStorage:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         for i in range(5):
             fs.seed_file(
                 base_path / f"backup_full_2026010{i}_120000.tar.gz",
@@ -452,7 +452,7 @@ class TestEnforceMaxStorage:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         fs.seed_file(
             base_path / "backup_full_20260101_120000.tar.gz",
             size=600_000_000,
@@ -484,7 +484,7 @@ class TestRetentionManagerSkipInUse:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         # Old backup inside a running job's output directory.
         old_file = base_path / "hash" / "job-123" / "backup_full_20250101_120000.tar.gz"
         fs.seed_file(old_file, size=100, mtime=now - timedelta(weeks=10))
@@ -519,7 +519,7 @@ class TestRetentionManagerSkipInUse:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         old_file = base_path / "hash" / "job-456" / "backup_full_20250101_120000.tar.gz"
         fs.seed_file(old_file, size=100, mtime=now - timedelta(weeks=10))
         recent_file = base_path / "backup_full_20260101_120000.tar.gz"
@@ -552,7 +552,7 @@ class TestRetentionManagerSkipInUse:
         fs: _FakeFsUtils,
         base_path: Path,
     ) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         old_file = base_path / "backup_full_20250101_120000.tar.gz"
         fs.seed_file(old_file, size=100, mtime=now - timedelta(weeks=10))
         recent_file = base_path / "backup_full_20260101_120000.tar.gz"

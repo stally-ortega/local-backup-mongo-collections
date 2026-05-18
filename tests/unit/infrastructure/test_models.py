@@ -2,7 +2,7 @@
 
 import os
 from collections.abc import AsyncGenerator
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -134,7 +134,7 @@ class TestRateLimitORM:
         rl = RateLimitORM(
             telegram_id=123,
             action="BACKUP",
-            window_start=datetime.utcnow(),
+            window_start=datetime.now(timezone.utc),
             count=3,
         )
         session.add(rl)

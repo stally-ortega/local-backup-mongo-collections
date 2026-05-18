@@ -276,17 +276,17 @@ class TestGetModificationTime:
         fs: AioFsUtils,
         tmp_path: Path,
     ) -> None:
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         target = tmp_path / "file.txt"
         target.write_text("x")
 
         mtime = await fs.get_modification_time(target)
         assert isinstance(mtime, datetime)
-        # Ensure it is naive UTC (as returned by datetime.utcfromtimestamp).
-        assert mtime.tzinfo is None
+        # Ensure it is timezone-aware UTC (as returned by datetime.fromtimestamp with tz).
+        assert mtime.tzinfo is not None
         # Roughly recent.
-        assert (datetime.utcnow() - mtime).total_seconds() < 10
+        assert (datetime.now(timezone.utc) - mtime).total_seconds() < 10
 
 
 class TestMove:

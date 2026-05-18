@@ -4,7 +4,7 @@ Maps between :class:`~app.domain.entities.backup_job.BackupJob` (domain entity) 
 :class:`~app.infrastructure.persistence.models.job.JobORM` (SQLAlchemy model).
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -101,7 +101,7 @@ class SQLJobRepository(IJobRepository):
 
     async def get_job_stats(self) -> dict[str, Any]:
         """Return aggregated job statistics computed via SQLAlchemy."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         week_start = now - timedelta(days=7)
         month_start = now - timedelta(days=30)
