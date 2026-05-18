@@ -74,7 +74,7 @@ class TestAuditServiceLogAction:
             command="/size",
             result="FAILED",
             duration_ms=150,
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             context={"db": "production"},
         )
 
@@ -85,7 +85,10 @@ class TestAuditServiceLogAction:
         assert entry.command == "/size"
         assert entry.result == "FAILED"
         assert entry.duration_ms == 150
-        assert entry.cluster_uri_hash == "hash123"
+        assert (
+            entry.cluster_uri_hash
+            == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert entry.details == {"db": "production"}
 
     @pytest.mark.asyncio

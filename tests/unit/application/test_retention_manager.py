@@ -488,16 +488,16 @@ class TestRetentionManagerSkipInUse:
     ) -> None:
         now = datetime.now(timezone.utc)
         # Old backup inside a running job's output directory.
-        old_file = base_path / "hash" / "job-123" / "backup_full_20250101_120000.tar.gz"
+        old_file = base_path / ("a" * 64) / "job-123" / "backup_full_20250101_120000.tar.gz"
         fs.seed_file(old_file, size=100, mtime=now - timedelta(weeks=10))
         # Recent backup outside so minimum_keep allows deletion of the old one.
         recent_file = base_path / "backup_full_20260101_120000.tar.gz"
         fs.seed_file(recent_file, size=100, mtime=now)
 
-        running_job = BackupJob.create_full("job-123", 1, "hash")
+        running_job = BackupJob.create_full("job-123", 1, "a" * 64)
         running_job.mark_queued()
         running_job.mark_running()
-        running_job.output_path = base_path / "hash" / "job-123"
+        running_job.output_path = base_path / ("a" * 64) / "job-123"
 
         job_repo = _FakeJobRepo([running_job])
         manager = RetentionManager(
@@ -522,16 +522,16 @@ class TestRetentionManagerSkipInUse:
         base_path: Path,
     ) -> None:
         now = datetime.now(timezone.utc)
-        old_file = base_path / "hash" / "job-456" / "backup_full_20250101_120000.tar.gz"
+        old_file = base_path / ("a" * 64) / "job-456" / "backup_full_20250101_120000.tar.gz"
         fs.seed_file(old_file, size=100, mtime=now - timedelta(weeks=10))
         recent_file = base_path / "backup_full_20260101_120000.tar.gz"
         fs.seed_file(recent_file, size=100, mtime=now)
 
-        success_job = BackupJob.create_full("job-456", 1, "hash")
+        success_job = BackupJob.create_full("job-456", 1, "a" * 64)
         success_job.mark_queued()
         success_job.mark_running()
         success_job.mark_success()
-        success_job.output_path = base_path / "hash" / "job-456"
+        success_job.output_path = base_path / ("a" * 64) / "job-456"
 
         job_repo = _FakeJobRepo([success_job])
         manager = RetentionManager(

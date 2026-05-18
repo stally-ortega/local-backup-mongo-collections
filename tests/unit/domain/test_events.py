@@ -23,7 +23,7 @@ class TestBackupRequested:
             job_id="j1",
             requester_telegram_id=123,
             backup_type=BackupType.FULL,
-            cluster_uri_hash="h" * 64,
+            cluster_uri_hash="a" * 64,
         )
         event = DomainEvent.backup_requested(payload, correlation_id="c1")
         assert event.event_type == "BACKUP_REQUESTED"
@@ -86,7 +86,7 @@ class TestJobCancelled:
 class TestSizeQueried:
     def test_event(self) -> None:
         payload = SizeQueriedPayload(
-            cluster_uri_hash="h" * 64,
+            cluster_uri_hash="a" * 64,
             requester_telegram_id=123,
         )
         event = DomainEvent.size_queried(payload, correlation_id="c2")

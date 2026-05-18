@@ -268,12 +268,19 @@ class TestMongoMetadataPort:
     @pytest.mark.asyncio
     async def test_list_databases(self) -> None:
         meta: IMongoMetadata = _FakeMongoMetadata()
-        dbs = await meta.list_databases("hash")
+        dbs = await meta.list_databases(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert dbs == ["db1", "db2"]
 
     @pytest.mark.asyncio
     async def test_get_size_stats(self) -> None:
         meta: IMongoMetadata = _FakeMongoMetadata()
-        report = await meta.get_size_stats("hash")
-        assert report.cluster_uri_hash == "hash"
+        report = await meta.get_size_stats(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
+        assert (
+            report.cluster_uri_hash
+            == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert report.total_size_bytes() == 1000

@@ -47,7 +47,7 @@ def _make_user(role: UserRole = UserRole.ADMIN) -> User:
 
 def _make_deps() -> TelegramDependencies:
     config = MagicMock()
-    config.cluster_uri_hash = "abc123def"
+    config.cluster_uri_hash = "a" * 64
 
     session = AsyncMock()
     session.__aenter__ = AsyncMock(return_value=session)
@@ -104,7 +104,7 @@ def _make_job(job_id: str = "job-123", status: JobStatus = JobStatus.QUEUED) -> 
         requester_telegram_id=42,
         backup_type=BackupType.FULL,
         status=status,
-        cluster_uri_hash="abc123def",
+        cluster_uri_hash="dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         created_at=datetime(2026, 5, 10, 12, 0, 0),
     )
 

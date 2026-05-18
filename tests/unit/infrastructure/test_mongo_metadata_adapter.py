@@ -87,10 +87,15 @@ class TestGetSizeStats:
 
         connection._client = mock_client
 
-        report = await adapter.get_size_stats("hash123")
+        report = await adapter.get_size_stats(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
 
         assert isinstance(report, SizeReport)
-        assert report.cluster_uri_hash == "hash123"
+        assert (
+            report.cluster_uri_hash
+            == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert len(report.databases) == 1
         assert report.databases[0] == DatabaseSize(
             database="mydb", size_bytes=1_000, collection_count=2
@@ -127,7 +132,9 @@ class TestGetSizeStats:
 
         connection._client = mock_client
 
-        report = await adapter.get_size_stats("hash123")
+        report = await adapter.get_size_stats(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
 
         assert len(report.databases) == 1
         assert len(report.collections) == 1
@@ -157,7 +164,9 @@ class TestGetSizeStats:
 
         connection._client = mock_client
 
-        report = await adapter.get_size_stats("hash123")
+        report = await adapter.get_size_stats(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
 
         assert len(report.collections) == 1
         assert report.collections[0].collection == "good_col"
@@ -182,7 +191,9 @@ class TestGetSizeStats:
 
         connection._client = mock_client
 
-        report = await adapter.get_size_stats("hash123")
+        report = await adapter.get_size_stats(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
 
         assert len(report.databases) == 0
         assert len(report.collections) == 0
@@ -202,7 +213,9 @@ class TestGetSizeStats:
 
         connection._client = mock_client
 
-        report = await adapter.get_size_stats("hash123")
+        report = await adapter.get_size_stats(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
 
         assert report.databases[0].size_bytes == 0
         assert report.databases[0].collection_count == 0

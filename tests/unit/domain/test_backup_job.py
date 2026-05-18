@@ -20,14 +20,14 @@ def pending_job() -> BackupJob:
 
 class TestFactoryMethods:
     def test_create_full(self) -> None:
-        job = BackupJob.create_full("id", 1, "hash")
+        job = BackupJob.create_full("id", 1, "a" * 64)
         assert job.backup_type == BackupType.FULL
         assert job.status == JobStatus.PENDING
         assert job.target_collections == []
 
     def test_create_custom(self) -> None:
         targets = [CollectionTarget(database="db", collection="col")]
-        job = BackupJob.create_custom("id", 1, "hash", targets)
+        job = BackupJob.create_custom("id", 1, "a" * 64, targets)
         assert job.backup_type == BackupType.CUSTOM
         assert job.target_collections == targets
 

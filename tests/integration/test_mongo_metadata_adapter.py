@@ -55,7 +55,12 @@ class TestMongoMetadataAdapterIntegration:
         assert isinstance(cols, list)
 
     async def test_get_size_stats_returns_report(self, adapter: MongoMetadataAdapter) -> None:
-        report = await adapter.get_size_stats("integration-test")
-        assert report.cluster_uri_hash == "integration-test"
+        report = await adapter.get_size_stats(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
+        assert (
+            report.cluster_uri_hash
+            == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert isinstance(report.databases, list)
         assert isinstance(report.collections, list)

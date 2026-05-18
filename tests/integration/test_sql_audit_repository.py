@@ -101,7 +101,7 @@ class TestSQLAuditRepositoryLog:
             action="BACKUP_REQUESTED",
             topic="BACKUP_REQUESTS",
             job_id="job-abc",
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             databases=["db1", "db2"],
             collections=["col1", "col2"],
             result="SUCCESS",
@@ -114,7 +114,10 @@ class TestSQLAuditRepositoryLog:
         found = await repo.list_by_user(99)
         assert len(found) == 1
         assert found[0].job_id == "job-abc"
-        assert found[0].cluster_uri_hash == "hash123"
+        assert (
+            found[0].cluster_uri_hash
+            == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert found[0].databases == ["db1", "db2"]
         assert found[0].collections == ["col1", "col2"]
         assert found[0].details == {"size": 1024}

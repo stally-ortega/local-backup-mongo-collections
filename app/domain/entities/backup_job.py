@@ -27,7 +27,7 @@ class BackupJob(BaseModel):
     status_message_id: int | None = None
     backup_type: BackupType
     status: JobStatus = JobStatus.PENDING
-    cluster_uri_hash: str = Field(..., min_length=1)
+    cluster_uri_hash: str = Field(..., min_length=1, pattern=r"^[a-f0-9]{64}$")
     target_collections: list[CollectionTarget] = Field(default_factory=list)
     progress: JobProgress | None = None
     output_path: Path | None = None

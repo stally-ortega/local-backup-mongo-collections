@@ -30,7 +30,7 @@ class BackupRequestedPayload(EventPayload):
     job_id: str = Field(..., min_length=1)
     requester_telegram_id: int = Field(..., gt=0)
     backup_type: BackupType
-    cluster_uri_hash: str = Field(..., min_length=1)
+    cluster_uri_hash: str = Field(..., min_length=1, pattern=r"^[a-f0-9]{64}$")
 
 
 class BackupStartedPayload(EventPayload):
@@ -79,7 +79,7 @@ class JobCancelledPayload(EventPayload):
 class SizeQueriedPayload(EventPayload):
     """Payload for :class:`SizeQueried`."""
 
-    cluster_uri_hash: str = Field(..., min_length=1)
+    cluster_uri_hash: str = Field(..., min_length=1, pattern=r"^[a-f0-9]{64}$")
     requester_telegram_id: int = Field(..., gt=0)
 
 

@@ -535,7 +535,16 @@ class TestExecuteBackupErrors:
         retention_manager: _FakeRetentionManager,
         fs_utils: _FakeFsUtils,
     ) -> None:
-        job = BackupJob.create_full("job-malicious", 1, "../etc/passwd")
+        job = BackupJob.model_construct(
+            id="job-malicious",
+            requester_telegram_id=1,
+            backup_type=BackupType.FULL,
+            cluster_uri_hash="../etc/passwd",
+            status=JobStatus.PENDING,
+            target_collections=[],
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
         job.mark_queued()
         await job_repo.save(job)
 

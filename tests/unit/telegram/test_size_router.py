@@ -33,7 +33,7 @@ def _make_user() -> User:
 
 def _make_deps() -> TelegramDependencies:
     config = MagicMock()
-    config.cluster_uri_hash = "abc123def"
+    config.cluster_uri_hash = "a" * 64
 
     mongo_meta = AsyncMock()
     mongo_meta.list_databases = AsyncMock(return_value=["db1", "db2"])

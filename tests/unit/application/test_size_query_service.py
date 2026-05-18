@@ -9,7 +9,7 @@ from app.domain.entities.size_report import CollectionSize, DatabaseSize, SizeRe
 class _FakeMongoMetadata:
     def __init__(self) -> None:
         self._report = SizeReport(
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             databases=[
                 DatabaseSize(database="db1", size_bytes=1_000, collection_count=2),
                 DatabaseSize(database="db2", size_bytes=2_000, collection_count=1),
@@ -55,7 +55,10 @@ class TestSizeQueryServiceCluster:
     @pytest.mark.asyncio
     async def test_get_cluster_size(self, service: SizeQueryService) -> None:
         report = await service.get_cluster_size("hash123")
-        assert report.cluster_uri_hash == "hash123"
+        assert (
+            report.cluster_uri_hash
+            == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert report.total_size_bytes() == 3_000
         assert report.database_count() == 2
         assert report.collection_count() == 3

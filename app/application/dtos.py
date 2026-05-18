@@ -49,7 +49,7 @@ class CreateJobRequest(BaseModel):
     topic_id: int | None = None
     status_message_id: int | None = None
     backup_type: BackupType
-    cluster_uri_hash: str = Field(..., min_length=1)
+    cluster_uri_hash: str = Field(..., min_length=1, pattern=r"^[a-f0-9]{64}$")
     target_collections: list[CollectionTarget] | None = None
 
 
@@ -61,7 +61,7 @@ class RequestBackupDto(BaseModel):
     topic_id: int | None = None
     status_message_id: int | None = None
     backup_type: BackupType
-    cluster_uri_hash: str = Field(..., min_length=1)
+    cluster_uri_hash: str = Field(..., min_length=1, pattern=r"^[a-f0-9]{64}$")
     target_collections: list[CollectionTarget] | None = None
     topic: str = "BACKUP_REQUESTS"
     command: str | None = None
@@ -101,7 +101,7 @@ class QuerySizeDto(BaseModel):
 
     user: UserPrincipalDto
     scope: str = Field(..., pattern=r"^(cluster|database|collection)$")
-    cluster_uri_hash: str = Field(..., min_length=1)
+    cluster_uri_hash: str = Field(..., min_length=1, pattern=r"^[a-f0-9]{64}$")
     database_name: str | None = None
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=50, ge=1, le=50)
@@ -113,7 +113,7 @@ class QuerySizeResult(BaseModel):
     """Outcome of a size query."""
 
     scope: str
-    cluster_uri_hash: str
+    cluster_uri_hash: str = Field(..., min_length=1, pattern=r"^[a-f0-9]{64}$")
     database_name: str | None = None
     total_size_bytes: int
     databases: list[DatabaseSize] | None = None

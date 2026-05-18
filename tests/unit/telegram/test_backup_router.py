@@ -54,7 +54,7 @@ def _make_deps(
     session_factory: MagicMock | None = None,
 ) -> TelegramDependencies:
     config = MagicMock()
-    config.cluster_uri_hash = "abc123def"
+    config.cluster_uri_hash = "a" * 64
     config.topic_backup_requests = 1
     config.rate_limit_max_requests = 10
     config.rate_limit_window_seconds = 60
@@ -65,7 +65,7 @@ def _make_deps(
     mongo_meta.list_collections = AsyncMock(return_value=["coll1", "coll2"])
     mongo_meta.get_size_stats = AsyncMock(
         return_value=SizeReport(
-            cluster_uri_hash="abc123def",
+            cluster_uri_hash="dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
             databases=[
                 DatabaseSize(database="db1", size_bytes=100_000, collection_count=2),
                 DatabaseSize(database="db2", size_bytes=200_000, collection_count=1),

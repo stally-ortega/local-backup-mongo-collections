@@ -19,7 +19,7 @@ from app.domain.value_objects.enums import UserRole
 class _FakeMongoMetadata:
     def __init__(self) -> None:
         self._report = SizeReport(
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             databases=[
                 DatabaseSize(database="db1", size_bytes=1_000, collection_count=2),
                 DatabaseSize(database="db2", size_bytes=2_000, collection_count=1),
@@ -109,14 +109,17 @@ class TestQuerySizeClusterScope:
         dto = QuerySizeDto(
             user=UserPrincipalDto.from_user(admin_user),
             scope="cluster",
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         )
 
         result = await use_case.execute(dto)
 
         assert isinstance(result, QuerySizeResult)
         assert result.scope == "cluster"
-        assert result.cluster_uri_hash == "hash123"
+        assert (
+            result.cluster_uri_hash
+            == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert result.total_size_bytes == 3_000
         assert result.databases is not None
         assert len(result.databases) == 2
@@ -132,7 +135,7 @@ class TestQuerySizeClusterScope:
         dto = QuerySizeDto(
             user=UserPrincipalDto.from_user(admin_user),
             scope="cluster",
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         )
 
         result = await use_case.execute(dto)
@@ -153,7 +156,7 @@ class TestQuerySizeDatabaseScope:
         dto = QuerySizeDto(
             user=UserPrincipalDto.from_user(admin_user),
             scope="database",
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         )
 
         result = await use_case.execute(dto)
@@ -175,7 +178,7 @@ class TestQuerySizeCollectionScope:
         dto = QuerySizeDto(
             user=UserPrincipalDto.from_user(admin_user),
             scope="collection",
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         )
 
         result = await use_case.execute(dto)
@@ -194,7 +197,7 @@ class TestQuerySizeCollectionScope:
         dto = QuerySizeDto(
             user=UserPrincipalDto.from_user(admin_user),
             scope="collection",
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             database_name="db1",
         )
 
@@ -214,7 +217,7 @@ class TestQuerySizeCollectionScope:
         dto = QuerySizeDto(
             user=UserPrincipalDto.from_user(admin_user),
             scope="collection",
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             page=1,
             page_size=2,
         )
@@ -236,7 +239,7 @@ class TestQuerySizePermissionError:
         dto = QuerySizeDto(
             user=UserPrincipalDto.from_user(inactive),
             scope="cluster",
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         )
 
         with pytest.raises(DomainPermissionError) as exc_info:
@@ -255,7 +258,7 @@ class TestQuerySizeAudit:
         dto = QuerySizeDto(
             user=UserPrincipalDto.from_user(admin_user),
             scope="cluster",
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         )
 
         await use_case.execute(dto)

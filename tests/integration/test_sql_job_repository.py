@@ -48,7 +48,7 @@ def _make_job(
     target_collections: list[CollectionTarget] | None = None,
     progress: JobProgress | None = None,
 ) -> BackupJob:
-    job = BackupJob.create_full(job_id, requester_telegram_id, "hash123")
+    job = BackupJob.create_full(job_id, requester_telegram_id, "a" * 64)
     job.status = status
     if target_collections:
         job.target_collections = target_collections
@@ -289,7 +289,7 @@ class TestSQLJobRepositorySave:
                 error_message="timeout",
             ),
         ]
-        job = BackupJob.create_custom("custom-job", 1, "hash456", targets)
+        job = BackupJob.create_custom("custom-job", 1, "b" * 64, targets)
         await repo.save(job)
         await db_session.commit()
 

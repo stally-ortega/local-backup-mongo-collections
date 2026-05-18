@@ -18,7 +18,7 @@ class AuditLog(BaseModel):
     topic: str = Field(..., min_length=1)
     command: str | None = None
     job_id: str | None = None
-    cluster_uri_hash: str | None = None
+    cluster_uri_hash: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     databases: list[str] | None = None
     collections: list[str] | None = None
     result: str = Field(..., min_length=1)

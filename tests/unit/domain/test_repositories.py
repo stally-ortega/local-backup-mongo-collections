@@ -39,7 +39,7 @@ class _FakeUserRepo:
 
 class _FakeJobRepo:
     async def get_by_id(self, job_id: str) -> BackupJob | None:
-        return BackupJob.create_full(job_id, 1, "hash")
+        return BackupJob.create_full(job_id, 1, "a" * 64)
 
     async def list_by_user(
         self,

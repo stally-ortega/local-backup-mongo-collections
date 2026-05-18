@@ -176,13 +176,16 @@ class TestJobManagerCreateJob:
         request = CreateJobRequest(
             requester_telegram_id=42,
             backup_type=BackupType.FULL,
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         )
         job = await job_manager.create_job(request)
 
         assert job.backup_type == BackupType.FULL
         assert job.requester_telegram_id == 42
-        assert job.cluster_uri_hash == "hash123"
+        assert (
+            job.cluster_uri_hash
+            == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert job.status == JobStatus.PENDING
         assert len(job.id) == 32  # uuid hex
 
@@ -198,7 +201,7 @@ class TestJobManagerCreateJob:
         request = CreateJobRequest(
             requester_telegram_id=7,
             backup_type=BackupType.CUSTOM,
-            cluster_uri_hash="hash456",
+            cluster_uri_hash="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             target_collections=targets,
         )
         job = await job_manager.create_job(request)
@@ -212,7 +215,7 @@ class TestJobManagerCreateJob:
         request = CreateJobRequest(
             requester_telegram_id=7,
             backup_type=BackupType.CUSTOM,
-            cluster_uri_hash="hash789",
+            cluster_uri_hash="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
             target_collections=[],
         )
 
@@ -231,7 +234,7 @@ class TestJobManagerEnqueueJob:
         request = CreateJobRequest(
             requester_telegram_id=42,
             backup_type=BackupType.FULL,
-            cluster_uri_hash="hash",
+            cluster_uri_hash="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         )
         job = await job_manager.create_job(request)
         await fake_job_repo.save(job)
@@ -267,7 +270,7 @@ class TestJobManagerEnqueueJob:
         request = CreateJobRequest(
             requester_telegram_id=3,
             backup_type=BackupType.CUSTOM,
-            cluster_uri_hash="hash",
+            cluster_uri_hash="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
             target_collections=targets,
         )
         job = await job_manager.create_job(request)
@@ -291,7 +294,7 @@ class TestJobManagerCancelJob:
         request = CreateJobRequest(
             requester_telegram_id=owner_user.telegram_id,
             backup_type=BackupType.FULL,
-            cluster_uri_hash="hash",
+            cluster_uri_hash="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         )
         job = await job_manager.create_job(request)
         await fake_job_repo.save(job)
@@ -318,7 +321,7 @@ class TestJobManagerCancelJob:
         request = CreateJobRequest(
             requester_telegram_id=owner_user.telegram_id,
             backup_type=BackupType.FULL,
-            cluster_uri_hash="hash",
+            cluster_uri_hash="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         )
         job = await job_manager.create_job(request)
         await fake_job_repo.save(job)
@@ -338,7 +341,7 @@ class TestJobManagerCancelJob:
         request = CreateJobRequest(
             requester_telegram_id=owner_user.telegram_id,
             backup_type=BackupType.FULL,
-            cluster_uri_hash="hash",
+            cluster_uri_hash="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         )
         job = await job_manager.create_job(request)
         await fake_job_repo.save(job)
@@ -362,7 +365,7 @@ class TestJobManagerCancelJob:
         request = CreateJobRequest(
             requester_telegram_id=owner_user.telegram_id,
             backup_type=BackupType.FULL,
-            cluster_uri_hash="hash",
+            cluster_uri_hash="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         )
         job = await job_manager.create_job(request)
         await fake_job_repo.save(job)
@@ -382,7 +385,7 @@ class TestJobManagerGetJobStatus:
         request = CreateJobRequest(
             requester_telegram_id=1,
             backup_type=BackupType.FULL,
-            cluster_uri_hash="hash",
+            cluster_uri_hash="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         )
         job = await job_manager.create_job(request)
         # Note: create_job already persists via repo; no need to save again
@@ -407,12 +410,12 @@ class TestJobManagerListUserJobs:
         req1 = CreateJobRequest(
             requester_telegram_id=owner_user.telegram_id,
             backup_type=BackupType.FULL,
-            cluster_uri_hash="a",
+            cluster_uri_hash="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         )
         req2 = CreateJobRequest(
             requester_telegram_id=other_user.telegram_id,
             backup_type=BackupType.FULL,
-            cluster_uri_hash="b",
+            cluster_uri_hash="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         )
         await job_manager.create_job(req1)
         await job_manager.create_job(req2)

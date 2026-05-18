@@ -88,7 +88,7 @@ class TestQueryJobsUseCase:
         admin = User(telegram_id=1, role=UserRole.ADMIN)
         dto = QueryJobsDto(user=UserPrincipalDto.from_user(admin), filter_status=JobStatus.QUEUED)
 
-        job = BackupJob.create_full("j1", 2, "hash")
+        job = BackupJob.create_full("j1", 2, "a" * 64)
         job.status = JobStatus.QUEUED
         use_case._job_repository = _FakeJobRepo([job])
 
@@ -104,7 +104,7 @@ class TestQueryJobsUseCase:
         user = User(telegram_id=2, role=UserRole.OPERATOR)
         dto = QueryJobsDto(user=UserPrincipalDto.from_user(user), filter_status=JobStatus.RUNNING)
 
-        job = BackupJob.create_full("j2", 2, "hash")
+        job = BackupJob.create_full("j2", 2, "a" * 64)
         job.status = JobStatus.RUNNING
         use_case._job_repository = _FakeJobRepo([job])
 
@@ -118,9 +118,9 @@ class TestQueryJobsUseCase:
         user = User(telegram_id=2, role=UserRole.OPERATOR)
         dto = QueryJobsDto(user=UserPrincipalDto.from_user(user), filter_status=JobStatus.QUEUED)
 
-        own_job = BackupJob.create_full("own", 2, "hash")
+        own_job = BackupJob.create_full("own", 2, "a" * 64)
         own_job.status = JobStatus.QUEUED
-        other_job = BackupJob.create_full("other", 3, "hash")
+        other_job = BackupJob.create_full("other", 3, "a" * 64)
         other_job.status = JobStatus.QUEUED
         use_case._job_repository = _FakeJobRepo([own_job, other_job])
 
@@ -135,9 +135,9 @@ class TestQueryJobsUseCase:
         admin = User(telegram_id=1, role=UserRole.ADMIN)
         dto = QueryJobsDto(user=UserPrincipalDto.from_user(admin))
 
-        job1 = BackupJob.create_full("j1", 2, "hash")
+        job1 = BackupJob.create_full("j1", 2, "a" * 64)
         job1.status = JobStatus.QUEUED
-        job2 = BackupJob.create_full("j2", 2, "hash")
+        job2 = BackupJob.create_full("j2", 2, "a" * 64)
         job2.status = JobStatus.RUNNING
         use_case._job_repository = _FakeJobRepo([job1, job2])
 

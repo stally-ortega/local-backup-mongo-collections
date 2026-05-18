@@ -264,7 +264,7 @@ def dto_full(admin_user: User) -> RequestBackupDto:
     return RequestBackupDto(
         user=UserPrincipalDto.from_user(admin_user),
         backup_type=BackupType.FULL,
-        cluster_uri_hash="hash123",
+        cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     )
 
 
@@ -346,7 +346,7 @@ class TestRequestBackupPermissionError:
         dto = RequestBackupDto(
             user=UserPrincipalDto.from_user(readonly_user),
             backup_type=BackupType.FULL,
-            cluster_uri_hash="hash123",
+            cluster_uri_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         )
         with pytest.raises(DomainPermissionError) as exc_info:
             await use_case.execute(dto)
@@ -455,7 +455,7 @@ class TestRequestBackupCustomCollections:
         dto = RequestBackupDto(
             user=UserPrincipalDto.from_user(admin_user),
             backup_type=BackupType.CUSTOM,
-            cluster_uri_hash="hash456",
+            cluster_uri_hash="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             target_collections=targets,
         )
 

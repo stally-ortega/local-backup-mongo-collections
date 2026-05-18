@@ -24,7 +24,9 @@ class TestDatabaseSize:
 
 class TestSizeReport:
     def test_empty_report(self) -> None:
-        report = SizeReport(cluster_uri_hash="hash")
+        report = SizeReport(
+            cluster_uri_hash="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        )
         assert report.total_size_bytes() == 0
         assert report.total_document_count() == 0
         assert report.collection_count() == 0
@@ -32,7 +34,7 @@ class TestSizeReport:
 
     def test_with_data(self) -> None:
         report = SizeReport(
-            cluster_uri_hash="hash",
+            cluster_uri_hash="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
             databases=[
                 DatabaseSize(database="db1", size_bytes=1000, collection_count=2),
                 DatabaseSize(database="db2", size_bytes=2000, collection_count=1),

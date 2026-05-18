@@ -234,7 +234,7 @@ async def _send_collection_page(
             scope="collection",
             database_name=database,
             page=1,
-            page_size=200,
+            page_size=50,
         )
         total_count = len(full_result.collections or [])
         collections = (full_result.collections or [])[

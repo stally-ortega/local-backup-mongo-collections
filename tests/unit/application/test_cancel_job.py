@@ -187,7 +187,7 @@ def other_user() -> User:
 
 
 async def _store_queued_job(repo: _FakeJobRepo, user: User) -> BackupJob:
-    job = BackupJob.create_full("job-001", user.telegram_id, "hash123")
+    job = BackupJob.create_full("job-001", user.telegram_id, "a" * 64)
     job.mark_queued()
     await repo.save(job)
     return job
@@ -289,7 +289,7 @@ class TestCancelJobErrors:
         job_repo: _FakeJobRepo,
         owner_user: User,
     ) -> None:
-        job = BackupJob.create_full("job-002", owner_user.telegram_id, "hash123")
+        job = BackupJob.create_full("job-002", owner_user.telegram_id, "a" * 64)
         job.mark_queued()
         job.mark_running()
         job.mark_success()

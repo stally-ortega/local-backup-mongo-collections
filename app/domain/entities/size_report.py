@@ -31,7 +31,7 @@ class SizeReport(BaseModel):
 
     model_config = {"frozen": True}
 
-    cluster_uri_hash: str = Field(..., min_length=1)
+    cluster_uri_hash: str = Field(..., min_length=1, pattern=r"^[a-f0-9]{64}$")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     databases: list[DatabaseSize] = Field(default_factory=list)
     collections: list[CollectionSize] = Field(default_factory=list)

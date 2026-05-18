@@ -77,12 +77,12 @@ class TestPermissionServiceCanExecute:
 
 class TestPermissionServiceCanCancel:
     def test_delegates_to_job(self, admin_user: User) -> None:
-        job = BackupJob.create_full("j1", 1, "hash")
+        job = BackupJob.create_full("j1", 1, "a" * 64)
         svc = PermissionService()
         assert svc.can_cancel(admin_user, job) is True
 
     def test_operator_cannot_cancel_terminal_job(self, operator_user: User) -> None:
-        job = BackupJob.create_full("j1", 1, "hash")
+        job = BackupJob.create_full("j1", 1, "a" * 64)
         job.mark_queued()
         job.mark_running()
         job.mark_success()
@@ -90,6 +90,6 @@ class TestPermissionServiceCanCancel:
         assert svc.can_cancel(operator_user, job) is False
 
     def test_inactive_user_cannot_cancel(self, inactive_user: User) -> None:
-        job = BackupJob.create_full("j1", 1, "hash")
+        job = BackupJob.create_full("j1", 1, "a" * 64)
         svc = PermissionService()
         assert svc.can_cancel(inactive_user, job) is False
