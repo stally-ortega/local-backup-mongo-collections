@@ -299,6 +299,18 @@ class ExecuteBackupUseCase:
                 status=CollectionBackupStatus.FAILED,
                 error_message=exc.message,
             )
+        except Exception as exc:  # noqa: BLE001
+            # Catch-all for unexpected errors (network, memory, etc.) so that
+            # a single corrupted collection does not abort the entire backup job.
+            logger.exception(
+                "Unexpected failure backing up %s.%s", target.database, target.collection
+            )
+            return CollectionTarget(
+                database=target.database,
+                collection=target.collection,
+                status=CollectionBackupStatus.FAILED,
+                error_message=str(exc),
+            )
 
     def _finalize_job(
         self,
