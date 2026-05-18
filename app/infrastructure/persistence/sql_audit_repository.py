@@ -39,21 +39,35 @@ class SQLAuditRepository(IAuditRepository):
         self._session.add(orm)
         await self._session.flush()
 
-    async def list_by_user(self, telegram_id: int) -> list[AuditLog]:
+    async def list_by_user(
+        self,
+        telegram_id: int,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> list[AuditLog]:
         """Return audit entries for a specific Telegram user."""
         result = await self._session.execute(
             select(AuditLogORM)
             .where(AuditLogORM.telegram_id == telegram_id)
             .order_by(AuditLogORM.timestamp.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
         )
         return [self._to_entity(row) for row in result.scalars().all()]
 
-    async def list_by_job(self, job_id: str) -> list[AuditLog]:
+    async def list_by_job(
+        self,
+        job_id: str,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> list[AuditLog]:
         """Return audit entries related to a specific job."""
         result = await self._session.execute(
             select(AuditLogORM)
             .where(AuditLogORM.job_id == job_id)
             .order_by(AuditLogORM.timestamp.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
         )
         return [self._to_entity(row) for row in result.scalars().all()]
 
@@ -61,6 +75,8 @@ class SQLAuditRepository(IAuditRepository):
         self,
         start: datetime,
         end: datetime,
+        page: int = 1,
+        page_size: int = 50,
     ) -> list[AuditLog]:
         """Return audit entries whose timestamp falls within [*start*, *end*]."""
         result = await self._session.execute(
@@ -70,6 +86,8 @@ class SQLAuditRepository(IAuditRepository):
                 AuditLogORM.timestamp <= end,
             )
             .order_by(AuditLogORM.timestamp.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
         )
         return [self._to_entity(row) for row in result.scalars().all()]
 

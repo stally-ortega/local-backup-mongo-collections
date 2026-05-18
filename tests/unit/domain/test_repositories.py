@@ -78,13 +78,17 @@ class _FakeAuditRepo:
     async def log(self, entry: AuditLog) -> None:
         pass
 
-    async def list_by_user(self, telegram_id: int) -> list[AuditLog]:
+    async def list_by_user(
+        self, telegram_id: int, page: int = 1, page_size: int = 50
+    ) -> list[AuditLog]:
         return []
 
-    async def list_by_job(self, job_id: str) -> list[AuditLog]:
+    async def list_by_job(self, job_id: str, page: int = 1, page_size: int = 50) -> list[AuditLog]:
         return []
 
-    async def list_by_date_range(self, start: datetime, end: datetime) -> list[AuditLog]:
+    async def list_by_date_range(
+        self, start: datetime, end: datetime, page: int = 1, page_size: int = 50
+    ) -> list[AuditLog]:
         return []
 
 

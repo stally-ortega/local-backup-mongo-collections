@@ -96,11 +96,21 @@ class IAuditRepository(Protocol):
         """Persist an audit entry."""
         ...
 
-    async def list_by_user(self, telegram_id: int) -> list[AuditLog]:
+    async def list_by_user(
+        self,
+        telegram_id: int,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> list[AuditLog]:
         """Return audit entries for a specific Telegram user."""
         ...
 
-    async def list_by_job(self, job_id: str) -> list[AuditLog]:
+    async def list_by_job(
+        self,
+        job_id: str,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> list[AuditLog]:
         """Return audit entries related to a specific job."""
         ...
 
@@ -108,6 +118,8 @@ class IAuditRepository(Protocol):
         self,
         start: datetime,
         end: datetime,
+        page: int = 1,
+        page_size: int = 50,
     ) -> list[AuditLog]:
         """Return audit entries whose timestamp falls within [*start*, *end*]."""
         ...
