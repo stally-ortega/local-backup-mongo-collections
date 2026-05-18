@@ -16,7 +16,6 @@ from aiogram.types import TelegramObject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import AppConfig
-from app.domain.entities.user import User
 from app.infrastructure.logging.structured_logger import get_logger
 from app.infrastructure.persistence.sql_rate_limit_repository import SQLRateLimitRepository
 from app.infrastructure.queue.redis_rate_limit_repository import RedisRateLimitRepository
@@ -57,33 +56,42 @@ class RateLimitMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         if self._config is None:
-            return None
+            return await handler(event, data)
 
-        user = data.get("user")
-        if not isinstance(user, User):
-            self._logger.warning("rate_limit_missing_user", event_type=type(event).__name__)
-            return None
+        # RateLimitMiddleware runs BEFORE AuthMiddleware in the global stack,
+        # so data["user"] does not exist yet. Extract the telegram_id from the
+        # raw aiogram user injected by the dispatcher into data["event_from_user"].
+        event_user = data.get("event_from_user")
+        if event_user is not None:
+            user_id: int | None = event_user.id
+        else:
+            ctx = extract_context(event)
+            user_id = ctx.user_id
+
+        if user_id is None:
+            # System events or webhooks without a user – skip rate limiting.
+            return await handler(event, data)
 
         command = extract_command(event)
         action = command or "GENERIC"
 
         # Prefer Redis when available; otherwise fall back to SQL.
         if self._redis_async_client is not None:
-            allowed = await self._check_with_redis(user.telegram_id, action)
+            allowed = await self._check_with_redis(user_id, action)
             if not allowed:
                 ctx = extract_context(event)
                 await self._reply_throttled(ctx, data)
                 return None
-            await self._increment_with_redis(user.telegram_id, action)
+            await self._increment_with_redis(user_id, action)
         else:
             if self._session_factory is None:
-                return None
+                return await handler(event, data)
 
             async with self._session_factory() as session:
                 repo = SQLRateLimitRepository(session)
 
                 allowed = await repo.check_limit(
-                    user.telegram_id,
+                    user_id,
                     action,
                     max_allowed=self._config.rate_limit_max_requests,
                     window_seconds=self._config.rate_limit_window_seconds,
@@ -95,7 +103,7 @@ class RateLimitMiddleware(BaseMiddleware):
                     return None
 
                 await repo.increment(
-                    user.telegram_id,
+                    user_id,
                     action,
                     window_seconds=self._config.rate_limit_window_seconds,
                 )

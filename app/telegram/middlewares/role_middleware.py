@@ -50,12 +50,13 @@ class RoleMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         if self._session_factory is None:
-            return None
+            return await handler(event, data)
 
         user = data.get("user")
         if not isinstance(user, User):
-            self._logger.warning("role_middleware_missing_user", event_type=type(event).__name__)
-            return None
+            # No authenticated user injected by AuthMiddleware.
+            # Allow the handler to deal with it (e.g. system events, webhooks).
+            return await handler(event, data)
 
         ctx = extract_context(event)
         command = extract_command(event)

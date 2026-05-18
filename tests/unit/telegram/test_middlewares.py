@@ -423,8 +423,8 @@ class TestRoleMiddleware:
     ) -> None:
         mw = RoleMiddleware(session_factory=None)
         result = await mw(mock_handler, _make_message_update(), _make_data())
-        assert result is None
-        mock_handler.assert_not_awaited()
+        assert result == "handler_result"
+        mock_handler.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------
@@ -494,8 +494,8 @@ class TestRateLimitMiddleware:
     ) -> None:
         mw = RateLimitMiddleware(session_factory=None, config=None)
         result = await mw(mock_handler, _make_message_update(), _make_data())
-        assert result is None
-        mock_handler.assert_not_awaited()
+        assert result == "handler_result"
+        mock_handler.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------
