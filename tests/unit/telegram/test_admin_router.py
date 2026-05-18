@@ -538,6 +538,39 @@ class TestCmdAuth:
         text = message.answer.await_args.args[0]
         assert "no válido" in text
 
+    async def test_rejects_extremely_long_username(self) -> None:
+        message = _make_message("/auth 123456789 " + "a" * 100 + " OPERATOR")
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        await cmd_auth(message, deps, user)
+
+        message.answer.assert_awaited_once()
+        text = message.answer.await_args.args[0]
+        assert "inválida" in text.lower()
+
+    async def test_rejects_extremely_large_telegram_id(self) -> None:
+        message = _make_message("/auth 999999999999999999999999999 alice OPERATOR")
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        await cmd_auth(message, deps, user)
+
+        message.answer.assert_awaited_once()
+        text = message.answer.await_args.args[0]
+        assert "inválida" in text.lower()
+
+    async def test_rejects_username_with_html_tags(self) -> None:
+        message = _make_message("/auth 123456789 <script>alert(1)</script> OPERATOR")
+        deps = _make_deps()
+        user = _make_user(UserRole.ADMIN)
+
+        await cmd_auth(message, deps, user)
+
+        message.answer.assert_awaited_once()
+        text = message.answer.await_args.args[0]
+        assert "inválida" in text.lower()
+
 
 # ---------------------------------------------------------------------------
 # cmd_health

@@ -10,6 +10,7 @@ import html
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
+from pydantic import ValidationError
 
 from app.application.dtos import (
     AddUserDto,
@@ -326,14 +327,19 @@ async def cmd_auth(
         await message.answer(f"Rol '{raw_role}' no válido. Roles: ADMIN, DBA, OPERATOR, READONLY")
         return
 
-    dto = AddUserDto(
-        requester=UserPrincipalDto.from_user(user),
-        telegram_id=telegram_id,
-        username=username,
-        role=role,
-        topic="ADMIN",
-        command="AUTH",
-    )
+    try:
+        dto = AddUserDto(
+            requester=UserPrincipalDto.from_user(user),
+            telegram_id=telegram_id,
+            username=username,
+            role=role,
+            topic="ADMIN",
+            command="AUTH",
+        )
+    except ValidationError as exc:
+        first_error = exc.errors()[0]["msg"] if exc.errors() else "Entrada inválida"
+        await message.answer(f"Entrada inválida: {first_error}")
+        return
 
     async with telegram_deps.session_factory() as session:
         use_case = build_add_user_use_case(telegram_deps, session)

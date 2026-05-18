@@ -6,7 +6,7 @@ without exposing domain internals directly.
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.domain.entities.backup_job import BackupJob
 from app.domain.entities.size_report import CollectionSize, DatabaseSize
@@ -194,11 +194,19 @@ class AddUserDto(BaseModel):
     """Input payload for the add-user use case."""
 
     requester: UserPrincipalDto
-    telegram_id: int = Field(..., gt=0)
-    username: str = Field(..., min_length=1)
+    telegram_id: int = Field(..., gt=0, le=9_223_372_036_854_775_807)
+    username: str = Field(..., min_length=1, max_length=32)
     role: UserRole
     topic: str = "ADMIN"
     command: str | None = None
+
+    @field_validator("username")
+    @classmethod
+    def _validate_username_safe(cls, v: str) -> str:
+        """Reject usernames containing HTML-like or injection-prone characters."""
+        if any(ch in v for ch in "<>&"):
+            raise ValueError("Username contains invalid characters")
+        return v
 
 
 class AddUserResult(BaseModel):
