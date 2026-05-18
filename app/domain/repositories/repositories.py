@@ -68,10 +68,6 @@ class IJobRepository(Protocol):
         """Persist a new or updated job."""
         ...
 
-    async def commit(self) -> None:
-        """Commit the current transaction so the job is durable on disk."""
-        ...
-
     async def clear_session_cache(self) -> None:
         """Discard any in-memory identity map / snapshot so the next query hits the database."""
         ...

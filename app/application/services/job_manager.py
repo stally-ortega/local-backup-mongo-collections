@@ -71,10 +71,6 @@ class JobManager:
         await self._job_repository.save(job)
         return job
 
-    async def commit(self) -> None:
-        """Commit the current transaction so the job is durable on disk."""
-        await self._job_repository.commit()
-
     async def enqueue_job(self, job_id: str) -> str:
         """Queue an existing job for execution and transition it to ``QUEUED``.
 

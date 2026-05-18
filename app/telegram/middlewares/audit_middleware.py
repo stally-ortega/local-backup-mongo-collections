@@ -104,7 +104,6 @@ class AuditMiddleware(BaseMiddleware):
                         "topic_id": topic_id,
                     },
                 )
-                await session.commit()
             except Exception as audit_exc:
                 self._logger.error(
                     "failed_to_write_audit_log",

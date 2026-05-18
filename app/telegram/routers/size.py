@@ -115,7 +115,6 @@ async def _run_size_query(
     async with deps.session_factory() as session:
         use_case = build_query_size_use_case(deps, session)
         result = await use_case.execute(dto)
-        await session.commit()
     return result
 
 

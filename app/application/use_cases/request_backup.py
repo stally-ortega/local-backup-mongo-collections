@@ -164,10 +164,7 @@ class RequestBackupUseCase:
             )
             job = await self._job_manager.create_job(create_req)
 
-            # 6. Commit immediately so the worker sees the row in SQLite
-            await self._job_manager.commit()
-
-            # 7. Audit the user action
+            # 6. Audit the user action
             await self._audit_service.log_action(
                 action="BACKUP_REQUESTED",
                 user=dto.user,

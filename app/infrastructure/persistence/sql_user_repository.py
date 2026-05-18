@@ -68,6 +68,7 @@ class SQLUserRepository(IUserRepository):
             orm.is_active = user.is_active
             orm.updated_at = user.created_at  # best-effort sync; DB onupdate wins
             await self._session.flush()
+        await self._session.commit()
 
     async def update_role(self, telegram_id: int, role: UserRole) -> User | None:
         """Change the role of the user identified by *telegram_id*.
@@ -83,6 +84,7 @@ class SQLUserRepository(IUserRepository):
 
         orm.role = role.value
         await self._session.flush()
+        await self._session.commit()
 
         return self._to_entity(orm)
 
@@ -97,6 +99,7 @@ class SQLUserRepository(IUserRepository):
 
         orm.is_active = not orm.is_active
         await self._session.flush()
+        await self._session.commit()
 
         return self._to_entity(orm)
 

@@ -107,4 +107,3 @@ class RoleMiddleware(BaseMiddleware):
                 command=command,
                 result="DENIED",
             )
-            await session.commit()

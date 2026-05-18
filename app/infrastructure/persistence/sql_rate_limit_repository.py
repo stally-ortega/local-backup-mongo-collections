@@ -83,6 +83,7 @@ class SQLRateLimitRepository(IRateLimitRepository):
         else:
             orm.count += 1
         await self._session.flush()
+        await self._session.commit()
         return orm.count
 
     async def reset(self, telegram_id: int, action: str) -> None:
@@ -92,3 +93,4 @@ class SQLRateLimitRepository(IRateLimitRepository):
             .where(RateLimitORM.telegram_id == telegram_id)
             .where(RateLimitORM.action == action)
         )
+        await self._session.commit()

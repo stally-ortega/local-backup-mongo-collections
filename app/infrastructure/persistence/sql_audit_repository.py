@@ -38,6 +38,7 @@ class SQLAuditRepository(IAuditRepository):
         orm = self._to_orm(entry)
         self._session.add(orm)
         await self._session.flush()
+        await self._session.commit()
 
     async def list_by_user(
         self,

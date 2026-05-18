@@ -501,7 +501,6 @@ async def on_ejecutar(
                     text=f"Permisos insuficientes: {exc.message}",
                 )
             return
-        await session.commit()
 
     await state.clear()
 

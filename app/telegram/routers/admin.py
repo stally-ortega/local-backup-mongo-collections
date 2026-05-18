@@ -125,7 +125,6 @@ async def _run_jobs_query(
     async with deps.session_factory() as session:
         use_case = build_list_jobs_use_case(deps, session)
         result = await use_case.execute(dto)
-        await session.commit()
     return result
 
 
@@ -145,7 +144,6 @@ async def _run_users_query(
     async with deps.session_factory() as session:
         use_case = build_list_users_use_case(deps, session)
         result = await use_case.execute(dto)
-        await session.commit()
     return result
 
 
@@ -164,7 +162,6 @@ async def _run_cancel_job(
     async with deps.session_factory() as session:
         use_case = build_cancel_job_use_case(deps, session)
         result = await use_case.execute(dto)
-        await session.commit()
     return result
 
 
@@ -351,10 +348,9 @@ async def cmd_auth(
                 "Usa el listado para modificarlo."
             )
             return
-        await session.commit()
 
     await message.answer(
-        f"✅ Usuario <code>{result.telegram_id}</code> ({result.username}) "
+        f"✅ Usuario <code>{result.telegram_id}</code> ({result.username})"
         f"agregado con rol <b>{result.role.value}</b>."
     )
 
@@ -421,7 +417,6 @@ async def on_job_action(
             except DomainPermissionError:
                 await callback.message.edit_text("No tienes permiso para ver este job.")
                 return
-            await session.commit()
             text = _render_job_detail(detail_result.job)
             await callback.message.edit_text(text)
         return
@@ -500,7 +495,6 @@ async def on_user_toggle(
         if updated is None:
             await callback.message.edit_text("Usuario no encontrado.")
             return
-        await session.commit()
 
     # Refresh the current page (re-use the helper).
     # We extract the current page from the message text as a best-effort fallback.
@@ -539,7 +533,6 @@ async def on_user_role(
         if updated is None:
             await callback.message.edit_text("Usuario no encontrado.")
             return
-        await session.commit()
 
     result = await _run_users_query(telegram_deps, user, page=1)
     text = _render_users_list(result)
@@ -576,7 +569,6 @@ async def cmd_health(
     async with telegram_deps.session_factory() as session:
         use_case = build_health_check_use_case(telegram_deps, session)
         result: HealthCheckResult = await use_case.execute(dto)
-        await session.commit()
 
     def _status(ok: bool) -> str:
         return "✅ OK" if ok else "❌ FAIL"
@@ -615,7 +607,6 @@ async def cmd_stats(
     async with telegram_deps.session_factory() as session:
         use_case = build_query_metrics_use_case(telegram_deps, session)
         result: QueryMetricsResult = await use_case.execute(dto)
-        await session.commit()
 
     storage_gb = result.storage_bytes / (1024 * 1024 * 1024)
     avg_str = (

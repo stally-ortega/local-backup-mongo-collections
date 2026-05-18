@@ -164,6 +164,7 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
                             inner_e,
                         )
                     raise
+                await session.commit()
             finally:
                 mongo_conn.close()
                 redis_conn.close()

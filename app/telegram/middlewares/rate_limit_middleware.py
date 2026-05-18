@@ -92,7 +92,6 @@ class RateLimitMiddleware(BaseMiddleware):
                 if not allowed:
                     ctx = extract_context(event)
                     await self._reply_throttled(ctx, data)
-                    await session.commit()
                     return None
 
                 await repo.increment(
@@ -100,7 +99,6 @@ class RateLimitMiddleware(BaseMiddleware):
                     action,
                     window_seconds=self._config.rate_limit_window_seconds,
                 )
-                await session.commit()
 
         return await handler(event, data)
 

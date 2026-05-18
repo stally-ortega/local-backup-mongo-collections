@@ -90,9 +90,6 @@ class SQLJobRepository(IJobRepository):
             self._update_orm(orm, job)
             await self._session.flush()
             await self._session.refresh(orm)
-
-    async def commit(self) -> None:
-        """Commit the current transaction so the job is durable on disk."""
         await self._session.commit()
 
     async def clear_session_cache(self) -> None:

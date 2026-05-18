@@ -65,11 +65,9 @@ class AuthMiddleware(BaseMiddleware):
             if user is None or not user.is_active:
                 await self._reply_unauthorized(ctx, data)
                 await self._log_denied(session, ctx)
-                await session.commit()
                 return None
 
             data["user"] = user
-            await session.commit()
 
         return await handler(event, data)
 

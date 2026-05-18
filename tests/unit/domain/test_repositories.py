@@ -58,9 +58,6 @@ class _FakeJobRepo:
     async def save(self, job: BackupJob) -> None:
         pass
 
-    async def commit(self) -> None:
-        pass
-
     async def clear_session_cache(self) -> None:
         pass
 
