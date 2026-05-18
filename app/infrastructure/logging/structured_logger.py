@@ -93,7 +93,14 @@ def _make_file_handler(
     # Harden log file permissions (no-op on Windows, restrictive on Unix).
     if not path.exists():
         path.write_text("")
-    os.chmod(path, 0o600)
+    try:
+        os.chmod(path, 0o600)
+    except PermissionError:
+        # Bind mounts or restricted filesystems may prevent chmod;
+        # the host / orchestrator is responsible for permissions.
+        logging.getLogger(__name__).debug(
+            "Could not chmod %s; assuming host-managed permissions", path
+        )
 
     if json_format:
         renderer: Any = structlog.processors.JSONRenderer()
