@@ -33,6 +33,45 @@ def _add_correlation_id(
     return event_dict
 
 
+def _anonymize_ip(ip: str) -> str:
+    """Zero out the last octet of IPv4 or last 80 bits of IPv6."""
+    if "." in ip:  # IPv4
+        parts = ip.split(".")
+        if len(parts) == 4:
+            return ".".join(parts[:3]) + ".0"
+    if ":" in ip:  # IPv6
+        parts = ip.split(":")
+        if len(parts) >= 4:
+            return ":".join(parts[:4]) + ":0:0:0:0"
+    return "REDACTED"
+
+
+def _sanitize_pii(
+    _logger: Any, _method_name: str, event_dict: MutableMapping[str, Any]
+) -> Mapping[str, Any]:
+    """Mask or hash PII fields before they reach the log file."""
+    if "ip_address" in event_dict and event_dict["ip_address"]:
+        event_dict["ip_address"] = _anonymize_ip(str(event_dict["ip_address"]))
+    if "user_agent" in event_dict and event_dict["user_agent"]:
+        ua = str(event_dict["user_agent"])
+        event_dict["user_agent"] = ua[:50] if len(ua) <= 50 else ua[:50] + "..."
+    if "telegram_id" in event_dict and event_dict["telegram_id"] is not None:
+        tid = str(event_dict["telegram_id"])
+        event_dict["telegram_id"] = f"tg_{tid[:3]}***{tid[-3:]}" if len(tid) > 6 else "***"
+    return event_dict
+
+
+def _sanitize_log_injection(
+    _logger: Any, _method_name: str, event_dict: MutableMapping[str, Any]
+) -> Mapping[str, Any]:
+    """Replace control characters that could be used for log injection."""
+    event = event_dict.get("event")
+    if isinstance(event, str):
+        trans = str.maketrans({"\n": "\\n", "\r": "\\r", "\t": "\\t", "\x00": "\\x00"})
+        event_dict["event"] = event.translate(trans)
+    return event_dict
+
+
 def _make_file_handler(
     path: Path,
     *,
@@ -143,6 +182,8 @@ def configure_logging(
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso" if json_format else "%Y-%m-%d %H:%M:%S"),
         _add_correlation_id,
+        _sanitize_pii,
+        _sanitize_log_injection,
     ]
 
     structlog.configure(
