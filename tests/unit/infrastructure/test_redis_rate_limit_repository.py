@@ -3,6 +3,7 @@
 Uses a ``fakeredis``-style mock so that no real Redis server is required.
 """
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,6 +16,27 @@ def mock_redis_client() -> MagicMock:
     """Return a fake Redis client with sorted-set semantics in memory."""
     client = MagicMock()
     _store: dict[str, dict[str, float]] = {}
+
+    async def _eval(script: str, numkeys: int, key: str, *args: Any) -> int:
+        """Simulate Lua script execution for trim-and-count operations."""
+        window_start_ms = float(args[0]) if args else 0
+
+        # Trim old entries
+        if key in _store:
+            _store[key] = {
+                member: score for member, score in _store[key].items() if score > window_start_ms
+            }
+
+        # If this is the increment script, there are extra args:
+        # [unique_member, now_ms, window_seconds]
+        if len(args) >= 3:
+            unique_member = args[1]
+            now_ms_arg = float(args[2])
+            if key not in _store:
+                _store[key] = {}
+            _store[key][unique_member] = now_ms_arg
+
+        return len(_store.get(key, {}))
 
     async def _zremrangebyscore(key: str, min_score: float, max_score: float) -> None:
         if key in _store:
@@ -39,6 +61,7 @@ def mock_redis_client() -> MagicMock:
     async def _delete(key: str) -> None:
         _store.pop(key, None)
 
+    client.eval = _eval
     client.zremrangebyscore = _zremrangebyscore
     client.zcard = _zcard
     client.zadd = _zadd

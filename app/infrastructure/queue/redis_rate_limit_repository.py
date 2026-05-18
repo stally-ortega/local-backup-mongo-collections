@@ -8,6 +8,9 @@ the current counter.
 
 The key itself is given a TTL so that inactive windows auto-expire and do
 not bloat Redis memory.
+
+All write operations are executed atomically via Lua scripts to prevent
+race conditions between trim, add, and count.
 """
 
 import time
@@ -16,6 +19,29 @@ import uuid
 import redis.asyncio as aioredis
 
 from app.domain.repositories.repositories import IRateLimitRepository
+
+# Atomic Lua script: trim old entries, add the current one, refresh TTL,
+# and return the final cardinality of the sorted set.
+_INCREMENT_SCRIPT = """
+local key = KEYS[1]
+local window_start_ms = tonumber(ARGV[1])
+local unique_member = ARGV[2]
+local now_ms = tonumber(ARGV[3])
+local window_seconds = tonumber(ARGV[4])
+
+redis.call('ZREMRANGEBYSCORE', key, 0, window_start_ms)
+redis.call('ZADD', key, now_ms, unique_member)
+redis.call('EXPIRE', key, window_seconds)
+return redis.call('ZCARD', key)
+"""
+
+# Atomic Lua script: trim old entries and return the current cardinality.
+_CHECK_SCRIPT = """
+local key = KEYS[1]
+local window_start_ms = tonumber(ARGV[1])
+redis.call('ZREMRANGEBYSCORE', key, 0, window_start_ms)
+return redis.call('ZCARD', key)
+"""
 
 
 class RedisRateLimitRepository(IRateLimitRepository):
@@ -46,10 +72,13 @@ class RedisRateLimitRepository(IRateLimitRepository):
         now_ms = int(time.time() * 1000)
         window_start_ms = now_ms - (window_seconds * 1000)
 
-        # Remove entries older than the sliding window.
-        await self._client.zremrangebyscore(key, 0, window_start_ms)
-        current = int(await self._client.zcard(key))
-        return current < max_allowed
+        current = await self._client.eval(
+            _CHECK_SCRIPT,
+            1,
+            key,
+            str(window_start_ms),
+        )  # type: ignore[misc]
+        return int(current) < max_allowed
 
     async def increment(
         self,
@@ -59,22 +88,24 @@ class RedisRateLimitRepository(IRateLimitRepository):
     ) -> int:
         """Bump the counter and return the new value.
 
-        Adds the current timestamp to the sorted set and refreshes the key TTL.
+        Executes trim, add, expire, and count atomically inside a Lua script
+        so concurrent callers cannot observe stale cardinalities.
         """
         key = self._key(telegram_id, action)
         now_ms = int(time.time() * 1000)
         window_start_ms = now_ms - (window_seconds * 1000)
-
-        # Trim old entries before counting.
-        await self._client.zremrangebyscore(key, 0, window_start_ms)
-        # Add current request with a unique member so that collisions within
-        # the same millisecond do not overwrite previous entries.
         unique_member = f"{now_ms}:{uuid.uuid4().hex[:8]}"
-        await self._client.zadd(key, {unique_member: now_ms})
-        # Ensure the key expires after the full window has passed.
-        await self._client.expire(key, window_seconds)
 
-        return int(await self._client.zcard(key))
+        count = await self._client.eval(
+            _INCREMENT_SCRIPT,
+            1,
+            key,
+            str(window_start_ms),
+            unique_member,
+            str(now_ms),
+            str(window_seconds),
+        )  # type: ignore[misc]
+        return int(count)
 
     async def reset(self, telegram_id: int, action: str) -> None:
         """Zero out the counter for the given user and action."""
