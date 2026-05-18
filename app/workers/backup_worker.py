@@ -31,7 +31,10 @@ from app.infrastructure.filesystem.aio_fs_utils import AioFsUtils
 from app.infrastructure.logging import clear_correlation_id, set_correlation_id
 from app.infrastructure.mongo.mongo_connection import MongoConnection
 from app.infrastructure.mongo.mongo_metadata_adapter import MongoMetadataAdapter
-from app.infrastructure.notifier.telegram_notifier import TelegramNotifier
+from app.infrastructure.notifier.telegram_notifier import (
+    TelegramNotifier,
+    _RedisGlobalRateLimiter,
+)
 from app.infrastructure.persistence.database import (
     create_engine,
     create_session_factory,
@@ -94,6 +97,11 @@ async def _execute(job_id: str, payload: dict[str, Any] | None = None) -> None:
                 notifier = TelegramNotifier(
                     aiogram_bot,
                     base_path=config.backup_base_path,
+                    rate_limiter=_RedisGlobalRateLimiter(
+                        aioredis_client,
+                        30,
+                        1.0,
+                    ),
                 )
                 retention_manager = RetentionManager(
                     fs_utils=fs_utils,

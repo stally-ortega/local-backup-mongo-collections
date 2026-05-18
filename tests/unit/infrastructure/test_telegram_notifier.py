@@ -225,3 +225,71 @@ class TestRateLimiting:
         # 35 messages with a 30 msg/s limit must span at least ~1 second.
         assert t1 - t0 >= 0.9
         assert mock_bot.send_message.await_count == 35
+
+
+class TestRedisGlobalRateLimiter:
+    @pytest.fixture
+    def mock_redis(self) -> MagicMock:
+        redis = MagicMock()
+        redis.zremrangebyscore = AsyncMock()
+        redis.zcard = AsyncMock(return_value=0)
+        redis.zadd = AsyncMock()
+        redis.expire = AsyncMock()
+        redis.zrange = AsyncMock(return_value=[])
+        return redis
+
+    async def test_acquire_records_request(self, mock_redis: MagicMock) -> None:
+        from app.infrastructure.notifier.telegram_notifier import _RedisGlobalRateLimiter
+
+        limiter = _RedisGlobalRateLimiter(mock_redis, limit=5, window_seconds=1.0)
+        await limiter.acquire()
+
+        mock_redis.zadd.assert_awaited_once()
+        mock_redis.expire.assert_awaited_once()
+
+    async def test_acquire_sleeps_when_limit_reached(self, mock_redis: MagicMock) -> None:
+        import time
+
+        from app.infrastructure.notifier.telegram_notifier import _RedisGlobalRateLimiter
+
+        mock_redis.zcard = AsyncMock(return_value=5)
+        mock_redis.zrange = AsyncMock(return_value=[(b"member", int(time.time() * 1000) - 500)])
+
+        limiter = _RedisGlobalRateLimiter(mock_redis, limit=5, window_seconds=1.0)
+
+        t0 = asyncio.get_event_loop().time()
+        await limiter.acquire()
+        t1 = asyncio.get_event_loop().time()
+
+        assert t1 - t0 >= 0.4
+        mock_redis.zadd.assert_awaited_once()
+
+    async def test_acquire_trims_old_entries(self, mock_redis: MagicMock) -> None:
+        from app.infrastructure.notifier.telegram_notifier import _RedisGlobalRateLimiter
+
+        limiter = _RedisGlobalRateLimiter(mock_redis, limit=5, window_seconds=1.0)
+        await limiter.acquire()
+
+        mock_redis.zremrangebyscore.assert_awaited_once()
+
+
+class TestTelegramNotifierWithRedisRateLimiter:
+    async def test_uses_injected_redis_limiter(
+        self, aiogram_bot: AiogramBot, mock_bot: MagicMock
+    ) -> None:
+        from app.infrastructure.notifier.telegram_notifier import _RedisGlobalRateLimiter
+
+        mock_redis = MagicMock()
+        mock_redis.zremrangebyscore = AsyncMock()
+        mock_redis.zcard = AsyncMock(return_value=0)
+        mock_redis.zadd = AsyncMock()
+        mock_redis.expire = AsyncMock()
+        mock_redis.zrange = AsyncMock(return_value=[])
+
+        limiter = _RedisGlobalRateLimiter(mock_redis, limit=30, window_seconds=1.0)
+        notifier = TelegramNotifier(aiogram_bot, rate_limiter=limiter)
+
+        await notifier.send_message(chat_id=1, text="hello")
+
+        mock_redis.zadd.assert_awaited_once()
+        mock_bot.send_message.assert_awaited_once()

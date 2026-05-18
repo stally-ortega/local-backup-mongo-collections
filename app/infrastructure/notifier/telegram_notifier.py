@@ -11,10 +11,12 @@ Features:
 import asyncio
 import html
 import logging
+import time
+import uuid
 from collections import deque
 from collections.abc import Callable, Coroutine
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, Protocol, TypeVar
 
 from aiogram.types import FSInputFile
 
@@ -30,7 +32,11 @@ _BACKOFF_BASE_SECONDS: float = 1.0
 _T = TypeVar("_T")
 
 
-class _GlobalRateLimiter:
+class _RateLimiter(Protocol):
+    async def acquire(self) -> None: ...
+
+
+class _InMemoryRateLimiter:
     """Sliding-window rate limiter enforcing *limit* calls per *window*."""
 
     def __init__(self, limit: int, window_seconds: float) -> None:
@@ -56,6 +62,54 @@ class _GlobalRateLimiter:
             self._timestamps.append(now)
 
 
+class _RedisGlobalRateLimiter:
+    """Distributed sliding-window rate limiter backed by Redis.
+
+    Uses a single sorted set per instance so that multi-process or
+    multi-container deployments share a global counter.
+    """
+
+    def __init__(
+        self,
+        redis_client: Any,
+        limit: int,
+        window_seconds: float,
+        key: str = "telegram_notifier:rate_limit",
+    ) -> None:
+        self._client = redis_client
+        self._limit = limit
+        self._window = window_seconds
+        self._key = key
+        self._lock = asyncio.Lock()
+
+    async def acquire(self) -> None:
+        async with self._lock:
+            now_ms = int(time.time() * 1000)
+            window_start_ms = now_ms - int(self._window * 1000)
+
+            # Trim old entries outside the sliding window.
+            await self._client.zremrangebyscore(self._key, 0, window_start_ms)
+            current = int(await self._client.zcard(self._key))
+
+            if current >= self._limit:
+                # Wait until the oldest entry expires.
+                oldest = await self._client.zrange(self._key, 0, 0, withscores=True)
+                if oldest:
+                    oldest_ms = int(oldest[0][1])
+                    sleep_time = (oldest_ms + int(self._window * 1000) - now_ms) / 1000.0
+                    if sleep_time > 0:
+                        await asyncio.sleep(sleep_time)
+                        # Re-check after sleeping.
+                        now_ms = int(time.time() * 1000)
+                        window_start_ms = now_ms - int(self._window * 1000)
+                        await self._client.zremrangebyscore(self._key, 0, window_start_ms)
+
+            # Record the current request.
+            member = f"{now_ms}:{uuid.uuid4().hex[:8]}"
+            await self._client.zadd(self._key, {member: now_ms})
+            await self._client.expire(self._key, int(self._window) + 1)
+
+
 class TelegramNotifier:
     """Send Telegram messages via aiogram with resilience controls."""
 
@@ -64,10 +118,11 @@ class TelegramNotifier:
         aiogram_bot: AiogramBot,
         *,
         base_path: Path | None = None,
+        rate_limiter: _RateLimiter | None = None,
     ) -> None:
         self._bot = aiogram_bot
         self._base_path = base_path
-        self._rate_limiter = _GlobalRateLimiter(
+        self._rate_limiter = rate_limiter or _InMemoryRateLimiter(
             _MAX_MESSAGES_PER_SECOND,
             _WINDOW_SECONDS,
         )
