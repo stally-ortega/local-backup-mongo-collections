@@ -1,6 +1,7 @@
 """User entity representing a Telegram operator in the platform."""
 
 from datetime import datetime, timezone
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -23,19 +24,25 @@ class User(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Role-to-command mapping (extendable without code changes).
-    _COMMAND_PERMISSIONS: dict[str, set[UserRole]] = {
-        "BACKUP": {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR},
-        "SIZE_QUERY": {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY},
-        "CANCEL_JOB": {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR},
-        "LIST_JOBS": {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY},
-        "MANAGE_USERS": {UserRole.ADMIN},
+    _COMMAND_PERMISSIONS: ClassVar[dict[str, frozenset[UserRole]]] = {
+        "BACKUP": frozenset({UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR}),
+        "SIZE_QUERY": frozenset(
+            {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY}
+        ),
+        "CANCEL_JOB": frozenset({UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR}),
+        "LIST_JOBS": frozenset(
+            {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY}
+        ),
+        "MANAGE_USERS": frozenset({UserRole.ADMIN}),
     }
 
-    _TOPIC_PERMISSIONS: dict[TopicType, set[UserRole]] = {
-        TopicType.BACKUP_REQUESTS: {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR},
-        TopicType.SIZE_ASK: {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY},
-        TopicType.EXECUTION_ERRORS: {UserRole.ADMIN, UserRole.DBA},
-        TopicType.ADMIN: {UserRole.ADMIN},
+    _TOPIC_PERMISSIONS: ClassVar[dict[TopicType, frozenset[UserRole]]] = {
+        TopicType.BACKUP_REQUESTS: frozenset({UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR}),
+        TopicType.SIZE_ASK: frozenset(
+            {UserRole.ADMIN, UserRole.DBA, UserRole.OPERATOR, UserRole.READONLY}
+        ),
+        TopicType.EXECUTION_ERRORS: frozenset({UserRole.ADMIN, UserRole.DBA}),
+        TopicType.ADMIN: frozenset({UserRole.ADMIN}),
     }
 
     def model_post_init(self, __context: object) -> None:
@@ -58,7 +65,7 @@ class User(BaseModel):
         if not self.is_active:
             return False
 
-        allowed_roles = self._COMMAND_PERMISSIONS.get(command, set())
+        allowed_roles = self._COMMAND_PERMISSIONS.get(command, frozenset())
         if self.role not in allowed_roles:
             return False
 
@@ -67,5 +74,5 @@ class User(BaseModel):
         except ValueError:
             return False
 
-        allowed_topic_roles = self._TOPIC_PERMISSIONS.get(topic_enum, set())
+        allowed_topic_roles = self._TOPIC_PERMISSIONS.get(topic_enum, frozenset())
         return self.role in allowed_topic_roles

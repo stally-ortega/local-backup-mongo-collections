@@ -40,19 +40,20 @@ class BackupJob(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Finite-state-machine adjacency list.
-    _VALID_TRANSITIONS: dict[JobStatus, set[JobStatus]] = {
-        JobStatus.PENDING: {JobStatus.QUEUED, JobStatus.CANCELLED},
-        JobStatus.QUEUED: {JobStatus.RUNNING, JobStatus.CANCELLED},
-        JobStatus.RUNNING: {
-            JobStatus.SUCCESS,
-            JobStatus.FAILED,
-            JobStatus.PARTIAL_SUCCESS,
-            JobStatus.CANCELLED,
-        },
-        JobStatus.CANCELLED: set(),
-        JobStatus.FAILED: set(),
-        JobStatus.PARTIAL_SUCCESS: set(),
-        JobStatus.CANCELLED: set(),
+    _VALID_TRANSITIONS: ClassVar[dict[JobStatus, frozenset[JobStatus]]] = {
+        JobStatus.PENDING: frozenset({JobStatus.QUEUED, JobStatus.CANCELLED}),
+        JobStatus.QUEUED: frozenset({JobStatus.RUNNING, JobStatus.CANCELLED}),
+        JobStatus.RUNNING: frozenset(
+            {
+                JobStatus.SUCCESS,
+                JobStatus.FAILED,
+                JobStatus.PARTIAL_SUCCESS,
+                JobStatus.CANCELLED,
+            }
+        ),
+        JobStatus.CANCELLED: frozenset(),
+        JobStatus.FAILED: frozenset(),
+        JobStatus.PARTIAL_SUCCESS: frozenset(),
     }
 
     @classmethod
@@ -101,7 +102,7 @@ class BackupJob(BaseModel):
 
     def _transition(self, new_status: JobStatus) -> None:
         """Validate and apply a state transition, updating timestamps."""
-        if new_status not in self._VALID_TRANSITIONS.get(self.status, set()):
+        if new_status not in self._VALID_TRANSITIONS.get(self.status, frozenset()):
             raise InvalidStateTransitionError(
                 f"Illegal transition from {self.status.value} to {new_status.value}"
             )
