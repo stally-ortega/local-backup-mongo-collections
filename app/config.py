@@ -119,6 +119,10 @@ class AppConfig(BaseSettings):
         default="INFO",
         description="Root logging level",
     )
+    sqlalchemy_echo: bool = Field(
+        default=False,
+        description="Emit SQLAlchemy SQL statements to logs (security: keep False in production)",
+    )
 
     # Rate limiting
     rate_limit_max_requests: int = Field(

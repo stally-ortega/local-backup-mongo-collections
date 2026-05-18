@@ -62,6 +62,7 @@ class TestAppConfigValidation:
         assert cfg.topic_size_ask == 2
         assert cfg.topic_execution_errors == 3
         assert cfg.topic_admin == 4
+        assert cfg.sqlalchemy_echo is False
 
     def test_backup_path_created_when_missing(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path

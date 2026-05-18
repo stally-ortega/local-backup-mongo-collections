@@ -40,7 +40,7 @@ async def create_engine(config: AppConfig) -> AsyncEngine:
 
     engine = create_async_engine(
         url,
-        echo=config.log_level == "DEBUG",
+        echo=config.sqlalchemy_echo,
         future=True,
         connect_args={"timeout": 15} if is_sqlite else {},
     )

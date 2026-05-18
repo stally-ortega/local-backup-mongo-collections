@@ -53,6 +53,23 @@ class TestCreateEngine:
 
         await dispose_engine(engine)
 
+    async def test_echo_disabled_by_default(self) -> None:
+        cfg = _config("sqlite+aiosqlite:///:memory:")
+        engine = await create_engine(cfg)
+
+        assert engine.echo is False
+
+        await dispose_engine(engine)
+
+    async def test_echo_enabled_when_configured(self) -> None:
+        cfg = _config("sqlite+aiosqlite:///:memory:")
+        cfg.sqlalchemy_echo = True
+        engine = await create_engine(cfg)
+
+        assert engine.echo is True
+
+        await dispose_engine(engine)
+
     async def test_dispose_idempotent(self) -> None:
         """Disposing an engine multiple times must not raise."""
         cfg = _config("sqlite+aiosqlite:///:memory:")
