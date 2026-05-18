@@ -51,7 +51,7 @@ class _FakeJobRepo:
         return []
 
     async def list_by_status(
-        self, status: JobStatus, page: int = 1, page_size: int = 50
+        self, status: JobStatus | None = None, page: int = 1, page_size: int = 50
     ) -> list[BackupJob]:
         return []
 

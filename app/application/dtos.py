@@ -156,7 +156,7 @@ class QueryJobsDto(BaseModel):
     """Input payload for the list-jobs use case."""
 
     user: UserPrincipalDto
-    filter_status: JobStatus = JobStatus.QUEUED
+    filter_status: JobStatus | None = None
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=10, ge=1, le=50)
     topic: str = "ADMIN"

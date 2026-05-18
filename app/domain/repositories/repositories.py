@@ -59,9 +59,9 @@ class IJobRepository(Protocol):
         ...
 
     async def list_by_status(
-        self, status: JobStatus, page: int = 1, page_size: int = 50
+        self, status: JobStatus | None = None, page: int = 1, page_size: int = 50
     ) -> list[BackupJob]:
-        """Return all jobs in the supplied status."""
+        """Return all jobs, optionally filtered by status."""
         ...
 
     async def count_by_status(self, status: JobStatus) -> int:

@@ -103,8 +103,10 @@ class _FakeJobRepo:
         return jobs
 
     async def list_by_status(
-        self, status: JobStatus, page: int = 1, page_size: int = 50
+        self, status: JobStatus | None = None, page: int = 1, page_size: int = 50
     ) -> list[BackupJob]:
+        if status is None:
+            return list(self._jobs.values())
         return [job for job in self._jobs.values() if job.status == status]
 
     async def count_by_status(self, status: JobStatus) -> int:

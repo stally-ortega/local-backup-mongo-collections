@@ -177,6 +177,19 @@ class TestSQLJobRepositoryListByStatus:
         assert all(j.status == JobStatus.QUEUED for j in queued)
 
     @pytest.mark.asyncio
+    async def test_returns_all_jobs_when_no_status_filter(
+        self,
+        repo: SQLJobRepository,
+        db_session: AsyncSession,
+    ) -> None:
+        await repo.save(_make_job(job_id="q1", status=JobStatus.QUEUED))
+        await repo.save(_make_job(job_id="r1", status=JobStatus.RUNNING))
+        await db_session.commit()
+
+        all_jobs = await repo.list_by_status()
+        assert len(all_jobs) == 2
+
+    @pytest.mark.asyncio
     async def test_paginates_by_status(
         self,
         repo: SQLJobRepository,

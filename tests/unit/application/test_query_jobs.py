@@ -36,8 +36,10 @@ class _FakeJobRepo(IJobRepository):
         return jobs
 
     async def list_by_status(
-        self, status: JobStatus, page: int = 1, page_size: int = 50
+        self, status: JobStatus | None = None, page: int = 1, page_size: int = 50
     ) -> list[BackupJob]:
+        if status is None:
+            return self._jobs
         return [j for j in self._jobs if j.status == status]
 
     async def count_by_status(self, status: JobStatus) -> int:
@@ -125,3 +127,19 @@ class TestQueryJobsUseCase:
         result = await use_case.execute(dto)
         assert len(result.jobs) == 1
         assert result.jobs[0].id == "own"
+
+    @pytest.mark.asyncio
+    async def test_admin_without_status_filter_sees_all_jobs(
+        self, use_case: QueryJobsUseCase
+    ) -> None:
+        admin = User(telegram_id=1, role=UserRole.ADMIN)
+        dto = QueryJobsDto(user=UserPrincipalDto.from_user(admin))
+
+        job1 = BackupJob.create_full("j1", 2, "hash")
+        job1.status = JobStatus.QUEUED
+        job2 = BackupJob.create_full("j2", 2, "hash")
+        job2.status = JobStatus.RUNNING
+        use_case._job_repository = _FakeJobRepo([job1, job2])
+
+        result = await use_case.execute(dto)
+        assert len(result.jobs) == 2

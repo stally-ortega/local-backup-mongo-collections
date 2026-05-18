@@ -63,19 +63,16 @@ class SQLJobRepository(IJobRepository):
 
     async def list_by_status(
         self,
-        status: JobStatus,
+        status: JobStatus | None = None,
         page: int = 1,
         page_size: int = 50,
     ) -> list[BackupJob]:
-        """Return all jobs in the supplied status."""
+        """Return all jobs, optionally filtered by status."""
         offset = (page - 1) * page_size
-        result = await self._session.execute(
-            select(JobORM)
-            .where(JobORM.status == status.value)
-            .order_by(JobORM.created_at.desc())
-            .offset(offset)
-            .limit(page_size)
-        )
+        stmt = select(JobORM).order_by(JobORM.created_at.desc()).offset(offset).limit(page_size)
+        if status is not None:
+            stmt = stmt.where(JobORM.status == status.value)
+        result = await self._session.execute(stmt)
         return [self._to_entity(row) for row in result.scalars().all()]
 
     async def count_by_status(self, status: JobStatus) -> int:
