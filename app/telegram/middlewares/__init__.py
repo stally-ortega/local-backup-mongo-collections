@@ -68,6 +68,7 @@ def get_global_middlewares(
     telegram_role_validator = None
     if bot is not None and config is not None:
         from app.infrastructure.telegram.telegram_role_validator import TelegramRoleValidator
+
         telegram_role_validator = TelegramRoleValidator(
             bot=bot,
             chat_id=config.telegram_chat_id,

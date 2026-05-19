@@ -371,9 +371,7 @@ class TestAuthMiddleware:
         mock_bot: MagicMock,
         mock_session_factory: MagicMock,
     ) -> None:
-        mock_bot.get_chat_member = AsyncMock(
-            return_value=MagicMock(status=ChatMemberStatus.MEMBER)
-        )
+        mock_bot.get_chat_member = AsyncMock(return_value=MagicMock(status=ChatMemberStatus.MEMBER))
         validator = TelegramRoleValidator(
             bot=mock_bot,
             chat_id=-100,
@@ -398,9 +396,7 @@ class TestAuthMiddleware:
         mock_session_factory: MagicMock,
     ) -> None:
         """OR logic: Telegram says non-admin, but local SQLite whitelist has the user."""
-        mock_bot.get_chat_member = AsyncMock(
-            return_value=MagicMock(status=ChatMemberStatus.MEMBER)
-        )
+        mock_bot.get_chat_member = AsyncMock(return_value=MagicMock(status=ChatMemberStatus.MEMBER))
         validator = TelegramRoleValidator(
             bot=mock_bot,
             chat_id=-100,
