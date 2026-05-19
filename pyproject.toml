@@ -34,6 +34,7 @@ mypy = "^1.10.0"
 pre-commit = "^3.7.0"
 alembic = "^1.13.0"
 pip-audit = "^2.7.0"
+types-cachetools = "^7.0.0.20260518"
 
 [build-system]
 requires = ["poetry-core"]
