@@ -1,0 +1,14 @@
+# Normalize line endings to LF for cross-platform consistency.
+* text=auto eol=lf
+
+# Binary files should not be modified.
+*.db binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
