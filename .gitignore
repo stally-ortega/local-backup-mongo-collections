@@ -66,3 +66,4 @@ htmlcov/
 Thumbs.db
 .claude/
 work_plan.md
+mongo_ops.db
