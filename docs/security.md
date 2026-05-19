@@ -1,27 +1,37 @@
 # Security
 
+## Authentication Sources
+
+The platform supports dual-source authorization with OR logic:
+
+1. **Telegram Native Roles (Primary)** — Users with CREATOR or ADMINISTRATOR
+   status in the configured group are granted ADMIN access automatically.
+   Results are cached in-memory with a 10-minute TTL to avoid rate-limiting
+   the Telegram Bot API.
+2. **Local SQLite Whitelist (Fallback)** — Traditional RBAC for operators
+   without elevated Telegram group roles.
+
+If either source grants access, the user proceeds. If both deny, the request
+receives `"No autorizado"` and an `AUTH_DENIED` audit event is logged.
+
 ## RBAC Model
 
-| Acción | Admin | DBA | Operator | ReadOnly |
+| Action | Admin | DBA | Operator | ReadOnly |
 |--------|:-----:|:---:|:--------:|:--------:|
 | Backup Full | ✅ | ✅ | ✅ | ❌ |
 | Backup Custom | ✅ | ✅ | ✅ | ❌ |
-| Cancel Job (propio) | ✅ | ✅ | ✅ | ❌ |
-| Cancel Job (ajeno) | ✅ | ✅ | ❌ | ❌ |
+| Cancel Job (own) | ✅ | ✅ | ✅ | ❌ |
+| Cancel Job (foreign) | ✅ | ✅ | ❌ | ❌ |
 | Query Size | ✅ | ✅ | ✅ | ✅ |
-| Ver Jobs | ✅ | ✅ | ✅ | ✅ |
-| Gestionar Usuarios | ✅ | ❌ | ❌ | ❌ |
-
-## Whitelist
-
-- No user can interact with the bot unless explicitly whitelisted.
-- Source of truth is the local SQL database.
-- Only ADMIN can add users via `/auth`.
+| View Jobs | ✅ | ✅ | ✅ | ✅ |
+| Manage Users | ✅ | ❌ | ❌ | ❌ |
 
 ## Rate Limiting
 
 - Commands per user: 30 per 60 seconds.
 - Backed by Redis sorted sets with automatic TTL expiration.
+- Telegram message edits are additionally throttled to one edit every 4 seconds
+  per job to avoid FloodWait penalties.
 
 ## Distributed Locks
 
@@ -37,13 +47,19 @@
 - SHA-256 hash is used for cluster identification.
 - Full URI lives only in memory (env var).
 - `.env` and `config.json` are gitignored.
+- Log files are created with `0o600` permissions; failures are logged as debug
+  instead of crashing (Docker bind mounts may restrict chmod).
 
 ## Auditing
 
-Every sensitive action is logged to `audit_logs`:
+Every sensitive action is logged to `audit.log`:
 - `BACKUP_REQUESTED`
+- `BACKUP_STARTED`
+- `BACKUP_COMPLETED` / `BACKUP_PARTIAL` / `BACKUP_FAILED`
 - `SIZE_QUERIED`
 - `USER_ADDED`
 - `JOB_CANCELLED`
+- `AUTH_DENIED`
+- `PERMISSION_DENIED`
 
-Retention: 1 year for legal compliance.
+Retention: 1 year for operational compliance.
